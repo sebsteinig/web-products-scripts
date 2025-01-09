@@ -28,20 +28,22 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests pyyaml
 
-    # Step to get all completed workflow runs for the current workflow
-    - name: Get all completed workflow runs
-      id: get_all_runs
+    # Step to get the newest artifact with name "config-files"
+    - name: Get the newest config-files artifact
+      id: get_newest_artifact
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Set the GitHub token for authentication
       run: |
-        completed_runs=$(gh run list --workflow check-configs.yml --status completed --json databaseId --jq '.[].databaseId')
-        echo "Completed runs: $completed_runs"
-        # Save the latest run ID
-        latest_run_id=$(echo "$completed_runs" | head -n 1)  # Get the first run ID
-        echo "Latest completed run ID: $latest_run_id"
-        echo "latest_run_id=$latest_run_id" >> $GITHUB_ENV  # Save only the latest run ID
+        # List all artifacts with name "config-files" and find the newest one
+        newest_artifact=$(gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts | map(select(.name == "config-files")) | sort_by(.created_at) | last')
+        artifact_id=$(echo "$newest_artifact" | jq -r '.id')
+        artifact_name=$(echo "$newest_artifact" | jq -r '.name')
+        
+        echo "Newest artifact ID: $artifact_id"
+        echo "Newest artifact name: $artifact_name"
+        echo "artifact_id=$artifact_id" >> $GITHUB_ENV
 
-    # Step to download the previous config files from the latest completed run
+    # Step to download the previous config files from the newest artifact
     - name: Download previous config files
       id: download
       uses: actions/download-artifact@v4
@@ -49,7 +51,7 @@ jobs:
       with:
         name: config-files
         path: previous-configs
-        run-id: ${{ env.latest_run_id }}  # Use the latest completed run ID
+        run-id: ${{ env.artifact_id }}  # Use the artifact ID of the newest artifact
 
     # Step to download the new config files
     - name: Download new config files
