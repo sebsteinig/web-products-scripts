@@ -136,7 +136,7 @@ jobs:
             title: '🔄 External Config Files Changed',
             body: `Changes detected in external configuration files.
 
-            The generate-json workflow has been automatically triggered to update the JSON files.
+            Use the generate-json workflow to automatically update the JSON files.
 
             ## Variable Config Changes
             \`\`\`diff
@@ -151,12 +151,12 @@ jobs:
           });
 
     # Step to trigger generate-json.yml workflow
-    - name: Trigger generate-json workflow
-      if: steps.compare.outputs.config_changed == 'true'
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh workflow run generate-json.yml
+    # - name: Trigger generate-json workflow
+    #   if: steps.compare.outputs.config_changed == 'true'
+    #   env:
+    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     gh workflow run generate-json.yml
         
     # Step to delete existing artifacts
     - name: Delete existing artifacts
