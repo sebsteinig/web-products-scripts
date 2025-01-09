@@ -135,5 +135,5 @@ jobs:
       if: always()  # Upload even if the check fails
       with:
         name: config-hashes
-        path: .config_hashes
+        path: .
         retention-days: 7  # Optional: specify how long to keep the artifact 
