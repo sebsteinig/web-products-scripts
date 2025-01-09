@@ -32,12 +32,12 @@ jobs:
     - name: Get all completed workflow runs
       id: get_all_runs
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Set the GitHub token for authentication
+        GH_TOKEN: ${{ github.token }}  # Set the GitHub token for authentication
       run: |
         completed_runs=$(gh run list --workflow check-configs.yml --status completed --json databaseId --jq '.[].databaseId')
         echo "Completed runs: $completed_runs"
         # Save the latest run ID
-        latest_run_id=$(echo "$completed_runs" | tail -n 1)
+        latest_run_id=$(echo "$completed_runs" | head -n 1)
         echo "Latest completed run ID: $latest_run_id"
         echo "latest_run_id=$latest_run_id" >> $GITHUB_ENV
         echo "completed_runs=$completed_runs" >> $GITHUB_ENV
