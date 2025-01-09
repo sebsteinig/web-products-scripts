@@ -32,7 +32,7 @@ jobs:
     - name: Get latest workflow run ID
       id: get_latest_run
       env:
-        GH_TOKEN: ${{ github.token }}  # Set the GitHub token for authentication
+        GH_TOKEN: ${{ github.token }} 
       run: |
         latest_run_id=$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
         echo "Latest run ID: $latest_run_id"
@@ -46,8 +46,7 @@ jobs:
       with:
         name: config-files
         path: previous-configs
-        # run-id: ${{ env.run_id }}  # Use the latest run ID
-        run-id: 12689580513
+        run-id: ${{ env.run_id }}  # Use the latest run ID
         github-token: ${{ github.token }}
 
     # Step to download the new config files
