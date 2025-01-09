@@ -74,35 +74,54 @@ jobs:
         # Create a directory for the comparison results
         mkdir -p comparison-results
         
-        # Initialize a flag to check if previous configs exist
-        previous_configs_exist=false
+        # Initialize variables for storing differences
+        var_diff=""
+        style_diff=""
         
         # Compare variable config files
         if [ -f "previous-configs/new_var_config.yaml" ]; then
           previous_configs_exist=true
-          diff new_var_config.yaml previous-configs/new_var_config.yaml > comparison-results/var_config_diff.txt || true
+          echo "Comparing variable config files..."
+          if ! diff new_var_config.yaml previous-configs/new_var_config.yaml > comparison-results/var_config_diff.txt; then
+            echo "Differences found in variable config:"
+            cat comparison-results/var_config_diff.txt
+            var_diff=$(cat comparison-results/var_config_diff.txt)
+          fi
         else
           echo "No previous variable config file found."
+          var_diff="No previous variable config file found."
         fi
         
         # Compare style config files
         if [ -f "previous-configs/new_style_config.yaml" ]; then
           previous_configs_exist=true
-          diff new_style_config.yaml previous-configs/new_style_config.yaml > comparison-results/style_config_diff.txt || true
+          echo "Comparing style config files..."
+          if ! diff new_style_config.yaml previous-configs/new_style_config.yaml > comparison-results/style_config_diff.txt; then
+            echo "Differences found in style config:"
+            cat comparison-results/style_config_diff.txt
+            style_diff=$(cat comparison-results/style_config_diff.txt)
+          fi
         else
           echo "No previous style config file found."
+          style_diff="No previous style config file found."
         fi
 
+        # Save the differences to environment variables for the issue
+        echo "var_diff<<EOF" >> $GITHUB_ENV
+        echo "$var_diff" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        
+        echo "style_diff<<EOF" >> $GITHUB_ENV
+        echo "$style_diff" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+
         # Check if there are any differences
-        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ]; then
+        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ] || [ "$previous_configs_exist" = false ]; then
           echo "Differences found in config files or new previous config found."
-          echo "::set-output name=config_changed::true"
-        elif [ "$previous_configs_exist" = false ]; then
-          echo  "No previous config files found. Starting fresh."
-          echo "::set-output name=config_changed::true"
+          echo "config_changed=true" >> $GITHUB_OUTPUT
         else
           echo "No differences found in config files."
-          echo "::set-output name=config_changed::false"
+          echo "config_changed=false" >> $GITHUB_OUTPUT
         fi
 
     # Step to create an issue if changes are detected
@@ -117,7 +136,15 @@ jobs:
             title: '🔄 External Config Files Changed',
             body: `Changes detected in external configuration files.
 
-            You can view the differences in the comparison results.
+            ## Variable Config Changes
+            \`\`\`diff
+            ${{ env.var_diff }}
+            \`\`\`
+
+            ## Style Config Changes
+            \`\`\`diff
+            ${{ env.style_diff }}
+            \`\`\`
             `
           });
 
