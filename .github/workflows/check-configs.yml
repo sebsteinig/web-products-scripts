@@ -67,8 +67,6 @@ jobs:
         curl -u "$BITBUCKET_USERNAME:$BITBUCKET_TOKEN" -o new_var_config.yaml "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/cams-europe-air-quality-forecasts/regional_fc_definitions.yaml?at=refs%2Fheads%2Fprod"
         curl -o new_style_config.yaml "https://raw.githubusercontent.com/CopernicusAtmosphere/air-quality-plot-settings/refs/heads/main/plot_settings.yaml"
 
-
-
     # Step to compare the new config files with the previous ones
     - name: Compare config files
       id: compare
@@ -125,6 +123,7 @@ jobs:
 
     # Step to delete existing artifacts
     - name: Delete existing artifacts
+      if: steps.compare.outputs.config_changed == 'true'
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Set the GitHub token for authentication
       run: |
@@ -136,17 +135,10 @@ jobs:
 
     # Step to upload the new config files as an artifact
     - name: Upload new config files
+      if: steps.compare.outputs.config_changed == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: config-files
         path: |
           new_var_config.yaml
           new_style_config.yaml 
-
-    # Step to list artifacts
-    - name: List artifacts
-      env:
-        GH_TOKEN: ${{ github.token }}  # Set the GitHub token for authentication
-      run: |
-        echo "Listing artifacts..."
-        gh api repos/${{ github.repository }}/actions/artifacts 
