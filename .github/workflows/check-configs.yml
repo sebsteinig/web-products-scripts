@@ -117,10 +117,10 @@ jobs:
 
         # Check if there are any differences
         if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ] || [ "$previous_configs_exist" = false ]; then
-          echo "Differences found in config files or new previous config found."
+          echo "Differences found in config file(s)."
           echo "config_changed=true" >> $GITHUB_OUTPUT
         else
-          echo "No differences found in config files."
+          echo "No differences found in config file(s)."
           echo "config_changed=false" >> $GITHUB_OUTPUT
         fi
 
@@ -135,6 +135,8 @@ jobs:
             repo: context.repo.repo,
             title: '🔄 External Config Files Changed',
             body: `Changes detected in external configuration files.
+
+            The generate-json workflow has been automatically triggered to update the JSON files.
 
             ## Variable Config Changes
             \`\`\`diff
