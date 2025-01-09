@@ -16,15 +16,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    # Step to download the previous config files if they exist
-    - name: Download previous config files
-      id: download
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        name: config-files
-        path: previous-configs
-
     # Step to set up Python
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -36,7 +27,27 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install requests pyyaml
-        
+
+    # Step to get the latest workflow run ID
+    - name: Get latest workflow run ID
+      id: get_latest_run
+      env:
+        GH_TOKEN: ${{ github.token }}  # Set the GitHub token for authentication
+      run: |
+        latest_run_id=$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
+        echo "Latest run ID: $latest_run_id"
+        echo "run_id=$latest_run_id" >> $GITHUB_ENV
+
+    # Step to download the previous config files from the latest run
+    - name: Download previous config files
+      id: download
+      uses: actions/download-artifact@v4
+      continue-on-error: true
+      with:
+        name: config-files
+        path: previous-configs
+        run-id: ${{ env.run_id }}  # Use the latest run ID
+
     # Step to download the new config files
     - name: Download new config files
       run: |
