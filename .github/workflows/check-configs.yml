@@ -28,19 +28,21 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests pyyaml
 
-    # Step to get the latest workflow run ID
-    - name: Get latest workflow run ID
-      id: get_latest_run
+    # Step to get all completed workflow runs for the current workflow
+    - name: Get all completed workflow runs
+      id: get_all_runs
       env:
-        GH_TOKEN: ${{ github.token }} 
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Set the GitHub token for authentication
       run: |
-        some_ids=$(gh run list --limit 10)
-        latest_run_id=$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
-        echo "Latest run ID: $latest_run_id"
-        echo "run_id=$latest_run_id" >> $GITHUB_ENV
-        echo "some_ids=$some_ids"
+        completed_runs=$(gh run list --workflow check-configs.yml --status completed --json databaseId --jq '.[].databaseId')
+        echo "Completed runs: $completed_runs"
+        # Save the latest run ID
+        latest_run_id=$(echo "$completed_runs" | tail -n 1)
+        echo "Latest completed run ID: $latest_run_id"
+        echo "latest_run_id=$latest_run_id" >> $GITHUB_ENV
+        echo "completed_runs=$completed_runs" >> $GITHUB_ENV
 
-    # Step to download the previous config files from the latest run
+    # Step to download the previous config files from the latest completed run
     - name: Download previous config files
       id: download
       uses: actions/download-artifact@v4
@@ -48,8 +50,7 @@ jobs:
       with:
         name: config-files
         path: previous-configs
-        run-id: ${{ env.run_id }}  
-        github-token: ${{ github.token }}
+        run-id: ${{ env.latest_run_id }}  # Use the latest completed run ID
 
     # Step to download the new config files
     - name: Download new config files
@@ -85,14 +86,11 @@ jobs:
         fi
 
         # Check if there are any differences
-        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ]; then
+        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ] || [ "$previous_configs_exist" = true ]; then
           echo "Differences found in config files or new previous config found."
           echo "::set-output name=config_changed::true"
-        elif [ "$previous_configs_exist" = false ]; then
-          echo "No previous config files found. Starting fresh."
-          echo "::set-output name=config_changed::true"
         else
-          echo "No differences found in config files. No further action required."
+          echo "No differences found in config files."
           echo "::set-output name=config_changed::false"
         fi
 
@@ -111,10 +109,21 @@ jobs:
             You can view the differences in the comparison results.
             `
           });
-        
-    # Step to upload the new config files as an artifact only if changes are detected
+
+    # Step to delete existing artifacts
+    - name: Delete existing artifacts
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Set the GitHub token for authentication
+      run: |
+        echo "Deleting existing artifacts..."
+        for artifact_id in $(gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts[] | select(.name == "config-files") | .id'); do
+          echo "Deleting artifact with ID: $artifact_id"
+          gh api -X DELETE /repos/${{ github.repository }}/actions/artifacts/$artifact_id
+        done
+
+    # Step to upload the new config files as an artifact
     - name: Upload new config files
-      if: steps.compare.outputs.config_changed == 'true'
+      if: steps.compare.outputs.config_changed == 'true'  # Only upload if changes are detected
       uses: actions/upload-artifact@v4
       with:
         name: config-files
