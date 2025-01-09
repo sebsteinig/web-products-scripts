@@ -36,11 +36,11 @@ jobs:
         echo "Listing artifacts..."
         gh api repos/${{ github.repository }}/actions/artifacts 
         
-    # Step to get the newest artifact with name "config-files"
+    # Step to get the newest config-files artifact
     - name: Get the newest config-files artifact
       id: get_newest_artifact
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Set the GitHub token for authentication
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # List all artifacts with name "config-files" and find the newest one
         newest_artifact=$(gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts | map(select(.name == "config-files")) | sort_by(.created_at) | last')
@@ -49,7 +49,8 @@ jobs:
         echo "Newest artifact ID: $artifact_id"
         echo "artifact_id=$artifact_id" >> $GITHUB_ENV
 
-        gh api repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip --output config-files.zip
+        # Download using the archive_download endpoint instead
+        gh api repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip -H "Accept: application/vnd.github+json" --method GET > config-files.zip
         unzip config-files.zip -d previous-configs
 
     # Step to download the previous config files from the newest artifact
