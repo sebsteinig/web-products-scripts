@@ -19,10 +19,18 @@ jobs:
     # Download previous hash file if it exists
     - name: Download previous hash file
       uses: actions/download-artifact@v4
-      continue-on-error: true  # Continue if no previous artifact exists
+      continue-on-error: true
       with:
         name: config-hashes
-        path: .
+        path: .config_hashes_previous  # Store in a different directory
+
+    - name: Ensure hash file exists
+      run: |
+        if [ -f ".config_hashes_previous/.config_hashes" ]; then
+          cp .config_hashes_previous/.config_hashes .config_hashes
+        else
+          echo "No previous hash file found, starting fresh"
+        fi
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -132,8 +140,8 @@ jobs:
     # Upload the new hash file
     - name: Upload hash file
       uses: actions/upload-artifact@v4
-      if: always()  # Upload even if the check fails
+      if: always()
       with:
         name: config-hashes
-        path: .
-        retention-days: 7  # Optional: specify how long to keep the artifact 
+        path: .config_hashes
+        retention-days: 7 
