@@ -45,13 +45,16 @@ jobs:
         # List all artifacts with name "config-files" and find the newest one
         newest_artifact=$(gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts | map(select(.name == "config-files")) | sort_by(.created_at) | last')
         artifact_id=$(echo "$newest_artifact" | jq -r '.id')
-        
-        echo "Newest artifact ID: $artifact_id"
-        echo "artifact_id=$artifact_id" >> $GITHUB_ENV
 
-        # Download using the archive_download endpoint instead
-        gh api repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip -H "Accept: application/vnd.github+json" --method GET > config-files.zip
-        unzip config-files.zip -d previous-configs
+        # Download the latest artifact
+        if [ -n "$artifact_id" ]; then
+          echo "Newest artifact ID found: $artifact_id"
+          echo "Downloading the latest config-files artifact..."
+          gh api repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip -H "Accept: application/vnd.github+json" --method GET > config-files.zip
+          unzip config-files.zip -d previous-configs
+        else
+          echo "No artifact found to download."
+        fi
 
     # Step to download the new config files
     - name: Download external config files
@@ -63,6 +66,7 @@ jobs:
         # Download the new config files
         curl -u "$BITBUCKET_USERNAME:$BITBUCKET_TOKEN" -o new_var_config.yaml "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/cams-europe-air-quality-forecasts/regional_fc_definitions.yaml?at=refs%2Fheads%2Fprod"
         curl -o new_style_config.yaml "https://raw.githubusercontent.com/CopernicusAtmosphere/air-quality-plot-settings/refs/heads/main/plot_settings.yaml"
+
 
 
     # Step to compare the new config files with the previous ones
@@ -92,8 +96,11 @@ jobs:
         fi
 
         # Check if there are any differences
-        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ] || [ "$previous_configs_exist" = true ]; then
+        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ]; then
           echo "Differences found in config files or new previous config found."
+          echo "::set-output name=config_changed::true"
+        elif [ "$previous_configs_exist" = false ]; then
+          echo  "No previous config files found. Starting fresh."
           echo "::set-output name=config_changed::true"
         else
           echo "No differences found in config files."
