@@ -124,7 +124,6 @@ jobs:
 
     # Step to upload the new config files as an artifact
     - name: Upload new config files
-      if: steps.compare.outputs.config_changed == 'true'  # Only upload if changes are detected
       uses: actions/upload-artifact@v4
       with:
         name: config-files
