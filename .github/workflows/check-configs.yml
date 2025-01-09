@@ -47,6 +47,7 @@ jobs:
         name: config-files
         path: previous-configs
         run-id: ${{ env.run_id }}  # Use the latest run ID
+        github-token: ${{ github.token }}
 
     # Step to download the new config files
     - name: Download new config files
