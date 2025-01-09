@@ -71,11 +71,14 @@ jobs:
         fi
 
         # Check if there are any differences
-        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ] || [ "$previous_configs_exist" = true ]; then
+        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ]; then
           echo "Differences found in config files or new previous config found."
           echo "::set-output name=config_changed::true"
+        elif [ "$previous_configs_exist" = false ]; then
+          echo "No previous config files found. Starting fresh."
+          echo "::set-output name=config_changed::true"
         else
-          echo "No differences found in config files."
+          echo "No differences found in config files. No further action required."
           echo "::set-output name=config_changed::false"
         fi
 
