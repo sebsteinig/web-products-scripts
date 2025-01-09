@@ -1,9 +1,13 @@
-name: Check External Configs (every 6 hours)
+name: Check External Configs
 
 on:
   schedule:
     - cron: '0 */6 * * *'  # runs every 6 hours
   workflow_dispatch:  # allow manual triggers for testing
+
+permissions:
+  issues: write
+  actions: write
 
 jobs:
   check:
