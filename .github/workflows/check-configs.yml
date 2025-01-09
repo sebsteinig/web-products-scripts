@@ -53,24 +53,17 @@ jobs:
         gh api repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip -H "Accept: application/vnd.github+json" --method GET > config-files.zip
         unzip config-files.zip -d previous-configs
 
-    # Step to download the previous config files from the newest artifact
-    # - name: Download previous config files
-    #   id: download
-    #   env:
-    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
-    #   uses: actions/download-artifact@v4
-    #   continue-on-error: true
-    #   with:
-    #     name: config-files
-    #     path: previous-configs
-    #     run-id: ${{ env.artifact_id }}  # Use the artifact ID of the newest artifact
-
     # Step to download the new config files
-    - name: Download new config files
+    - name: Download external config files
+      env:
+        BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
+        BITBUCKET_TOKEN: ${{ secrets.BITBUCKET_TOKEN }}
       run: |
+      
         # Download the new config files
-        curl -o new_var_config.yaml "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/cams-europe-air-quality-forecasts/regional_fc_definitions.yaml?at=refs%2Fheads%2Fprod"
+        curl -u "$BITBUCKET_USERNAME:$BITBUCKET_TOKEN" -o new_var_config.yaml "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/cams-europe-air-quality-forecasts/regional_fc_definitions.yaml?at=refs%2Fheads%2Fprod"
         curl -o new_style_config.yaml "https://raw.githubusercontent.com/CopernicusAtmosphere/air-quality-plot-settings/refs/heads/main/plot_settings.yaml"
+
 
     # Step to compare the new config files with the previous ones
     - name: Compare config files
