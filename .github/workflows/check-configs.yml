@@ -34,9 +34,11 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }} 
       run: |
+        some_ids=$(gh run list --limit 10)
         latest_run_id=$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
         echo "Latest run ID: $latest_run_id"
         echo "run_id=$latest_run_id" >> $GITHUB_ENV
+        echo "some_ids=$some_ids"
 
     # Step to download the previous config files from the latest run
     - name: Download previous config files
@@ -46,7 +48,7 @@ jobs:
       with:
         name: config-files
         path: previous-configs
-        run-id: ${{ env.run_id }}  # Use the latest run ID
+        run-id: ${{ env.run_id }}  
         github-token: ${{ github.token }}
 
     # Step to download the new config files
