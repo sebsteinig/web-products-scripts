@@ -54,6 +54,8 @@ jobs:
     # Step to download the previous config files from the newest artifact
     - name: Download previous config files
       id: download
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
       uses: actions/download-artifact@v4
       continue-on-error: true
       with:
