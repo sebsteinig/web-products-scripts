@@ -107,3 +107,9 @@ jobs:
         path: |
           new_var_config.yaml
           new_style_config.yaml 
+
+    # Step to list artifacts
+    - name: List artifacts
+      run: |
+        echo "Listing artifacts..."
+        gh api repos/${{ github.repository }}/actions/artifacts 
