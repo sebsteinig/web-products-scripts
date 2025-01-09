@@ -16,6 +16,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    # Download previous hash file if it exists
+    - name: Download previous hash file
+      uses: actions/download-artifact@v4
+      continue-on-error: true  # Continue if no previous artifact exists
+      with:
+        name: config-hashes
+        path: .
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -120,3 +128,12 @@ jobs:
             workflow_id: 'generate-json.yml',
             ref: context.ref
           }) 
+
+    # Upload the new hash file
+    - name: Upload hash file
+      uses: actions/upload-artifact@v4
+      if: always()  # Upload even if the check fails
+      with:
+        name: config-hashes
+        path: .config_hashes
+        retention-days: 7  # Optional: specify how long to keep the artifact 
