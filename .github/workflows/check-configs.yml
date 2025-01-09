@@ -16,98 +16,67 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    # Download previous hash file if it exists
-    - name: Download previous hash file
+    # Step to download the previous config files if they exist
+    - name: Download previous config files
+      id: download
       uses: actions/download-artifact@v4
       continue-on-error: true
       with:
-        name: config-hashes
-        path: .config_hashes_previous  # Store in a different directory
+        name: config-files
+        path: previous-configs
 
-    - name: Ensure hash file exists
-      run: |
-        if [ -f ".config_hashes_previous/.config_hashes" ]; then
-          cp .config_hashes_previous/.config_hashes .config_hashes
-        else
-          echo "No previous hash file found, starting fresh"
-        fi
-
+    # Step to set up Python
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
         
+    # Step to install dependencies
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install requests pyyaml
         
-    - name: Check config files
-      id: check  # Add ID to reference outputs
-      env:
-        BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
-        BITBUCKET_TOKEN: ${{ secrets.BITBUCKET_TOKEN }}
+    # Step to download the new config files
+    - name: Download new config files
       run: |
-        python - <<EOF
-        import requests
-        import yaml
-        import hashlib
-        import os
-        from datetime import datetime
+        # Download the new config files
+        curl -o new_var_config.yaml "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/cams-europe-air-quality-forecasts/regional_fc_definitions.yaml?at=refs%2Fheads%2Fprod"
+        curl -o new_style_config.yaml "https://raw.githubusercontent.com/CopernicusAtmosphere/air-quality-plot-settings/refs/heads/main/plot_settings.yaml"
+
+    # Step to compare the new config files with the previous ones
+    - name: Compare config files
+      id: compare
+      run: |
+        # Create a directory for the comparison results
+        mkdir -p comparison-results
         
-        def get_file_hash(url, auth=None):
-            response = requests.get(url, auth=auth)
-            response.raise_for_status()
-            return hashlib.sha256(response.content).hexdigest()
+        # Compare variable config files
+        if [ -f "previous-configs/new_var_config.yaml" ]; then
+          diff new_var_config.yaml previous-configs/new_var_config.yaml > comparison-results/var_config_diff.txt || true
+        else
+          echo "No previous variable config file found."
+        fi
         
-        # URLs of config files
-        var_config_url = "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/cams-europe-air-quality-forecasts/regional_fc_definitions.yaml?at=refs%2Fheads%2Fprod"
-        style_config_url = "https://raw.githubusercontent.com/CopernicusAtmosphere/air-quality-plot-settings/refs/heads/main/plot_settings.yaml"
-        
-        # Get auth for Bitbucket
-        auth = None
-        if 'git.ecmwf.int' in var_config_url:
-            username = os.getenv('BITBUCKET_USERNAME')
-            token = os.getenv('BITBUCKET_TOKEN')
-            if username and token:
-                auth = (username, token)
-        
-        # Get current hashes
-        var_hash = get_file_hash(var_config_url, auth)
-        style_hash = get_file_hash(style_config_url)
-        
-        # Create or update hash file
-        hash_file = '.config_hashes'
-        old_hashes = {}
-        if os.path.exists(hash_file):
-            with open(hash_file, 'r') as f:
-                old_hashes = yaml.safe_load(f) or {}
-        
-        changes = []
-        if old_hashes.get('var_config') != var_hash:
-            changes.append("Variable config file (regional_fc_definitions.yaml)")
-        if old_hashes.get('style_config') != style_hash:
-            changes.append("Style config file (plot_settings.yaml)")
-        
-        # Save new hashes
-        new_hashes = {
-            'var_config': var_hash,
-            'style_config': style_hash
-        }
-        with open(hash_file, 'w') as f:
-            yaml.dump(new_hashes, f)
-        
-        # Set outputs for GitHub Actions
-        if changes:
-            print("::set-output name=config_changed::true")
-            print(f"::set-output name=changed_files::{', '.join(changes)}")
-            print(f"::set-output name=check_time::{datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
-        else:
-            print("::set-output name=config_changed::false")
-        EOF
-        
+        # Compare style config files
+        if [ -f "previous-configs/new_style_config.yaml" ]; then
+          diff new_style_config.yaml previous-configs/new_style_config.yaml > comparison-results/style_config_diff.txt || true
+        else
+          echo "No previous style config file found."
+        fi
+
+        # Check if there are any differences
+        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ]; then
+          echo "Differences found in config files."
+          echo "::set-output name=config_changed::true"
+        else
+          echo "No differences found in config files."
+          echo "::set-output name=config_changed::false"
+        fi
+
+    # Step to create an issue if changes are detected
     - name: Create Issue
-      if: steps.check.outputs.config_changed == 'true'
+      if: steps.compare.outputs.config_changed == 'true'
       uses: actions/github-script@v6
       with:
         script: |
@@ -115,33 +84,18 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             title: '🔄 External Config Files Changed',
-            body: `Changes detected in external configuration files at ${{ steps.check.outputs.check_time }}
+            body: `Changes detected in external configuration files.
 
-            Changed files:
-            - ${{ steps.check.outputs.changed_files }}
-            
-            The generate-json workflow has been automatically triggered to update the JSON files.
-            
-            You can view the workflow run here: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/workflows/generate-json.yml`
+            You can view the differences in the comparison results.
+            `
           });
         
-    - name: Trigger generate workflow
-      if: steps.check.outputs.config_changed == 'true'
-      uses: actions/github-script@v6
-      with:
-        script: |
-          await github.rest.actions.createWorkflowDispatch({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            workflow_id: 'generate-json.yml',
-            ref: context.ref
-          }) 
-
-    # Upload the new hash file
-    - name: Upload hash file
+    # Step to upload the new config files as an artifact only if changes are detected
+    - name: Upload new config files
+      if: steps.compare.outputs.config_changed == 'true'
       uses: actions/upload-artifact@v4
-      if: always()
       with:
-        name: config-hashes
-        path: .config_hashes
-        retention-days: 7 
+        name: config-files
+        path: |
+          new_var_config.yaml
+          new_style_config.yaml 
