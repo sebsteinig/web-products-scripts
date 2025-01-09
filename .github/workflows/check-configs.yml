@@ -1,0 +1,118 @@
+name: Check External Configs (every 6 hours)
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # runs every 6 hours
+  workflow_dispatch:  # allow manual triggers for testing
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests pyyaml
+        
+    - name: Check config files
+      id: check  # Add ID to reference outputs
+      env:
+        BITBUCKET_USERNAME: ${{ secrets.BITBUCKET_USERNAME }}
+        BITBUCKET_TOKEN: ${{ secrets.BITBUCKET_TOKEN }}
+      run: |
+        python - <<EOF
+        import requests
+        import yaml
+        import hashlib
+        import os
+        from datetime import datetime
+        
+        def get_file_hash(url, auth=None):
+            response = requests.get(url, auth=auth)
+            response.raise_for_status()
+            return hashlib.sha256(response.content).hexdigest()
+        
+        # URLs of config files
+        var_config_url = "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/cams-europe-air-quality-forecasts/regional_fc_definitions.yaml?at=refs%2Fheads%2Fprod"
+        style_config_url = "https://raw.githubusercontent.com/CopernicusAtmosphere/air-quality-plot-settings/refs/heads/main/plot_settings.yaml"
+        
+        # Get auth for Bitbucket
+        auth = None
+        if 'git.ecmwf.int' in var_config_url:
+            username = os.getenv('BITBUCKET_USERNAME')
+            token = os.getenv('BITBUCKET_TOKEN')
+            if username and token:
+                auth = (username, token)
+        
+        # Get current hashes
+        var_hash = get_file_hash(var_config_url, auth)
+        style_hash = get_file_hash(style_config_url)
+        
+        # Create or update hash file
+        hash_file = '.config_hashes'
+        old_hashes = {}
+        if os.path.exists(hash_file):
+            with open(hash_file, 'r') as f:
+                old_hashes = yaml.safe_load(f) or {}
+        
+        changes = []
+        if old_hashes.get('var_config') != var_hash:
+            changes.append("Variable config file (regional_fc_definitions.yaml)")
+        if old_hashes.get('style_config') != style_hash:
+            changes.append("Style config file (plot_settings.yaml)")
+        
+        # Save new hashes
+        new_hashes = {
+            'var_config': var_hash,
+            'style_config': style_hash
+        }
+        with open(hash_file, 'w') as f:
+            yaml.dump(new_hashes, f)
+        
+        # Set outputs for GitHub Actions
+        if changes:
+            print("::set-output name=config_changed::true")
+            print(f"::set-output name=changed_files::{', '.join(changes)}")
+            print(f"::set-output name=check_time::{datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
+        else:
+            print("::set-output name=config_changed::false")
+        EOF
+        
+    - name: Create Issue
+      if: steps.check.outputs.config_changed == 'true'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🔄 External Config Files Changed',
+            body: `Changes detected in external configuration files at ${{ steps.check.outputs.check_time }}
+
+            Changed files:
+            - ${{ steps.check.outputs.changed_files }}
+            
+            The generate-json workflow has been automatically triggered to update the JSON files.
+            
+            You can view the workflow run here: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/workflows/generate-json.yml`
+          });
+        
+    - name: Trigger generate workflow
+      if: steps.check.outputs.config_changed == 'true'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'generate-json.yml',
+            ref: context.ref
+          }) 
