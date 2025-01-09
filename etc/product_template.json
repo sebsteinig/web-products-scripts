@@ -1,0 +1,27 @@
+{
+    "access": [
+        "public" 
+    ], 
+    "application": "pgf", 
+    "class": "data",
+    "eccharts": false, 
+    "enabled": true, 
+    "in_production": true, 
+    "kind": "interactive",
+    "opencharts": true,
+    "owner": "ecmwf", 
+    "order": 34,
+    "projection": "cams_aq_central_europe",
+    "publisher": "mod", 
+    "render": "render", 
+    "tags": {
+        "Product type": "Forecast",
+        "Parameter": ""
+    }, 
+    "type": "product", 
+    "variables": [ ], 
+    "viewport": {
+        "height": 683,
+        "width": 1024
+    }
+}

@@ -1,0 +1,44 @@
+{
+    "data": {
+        "contour": {
+            "contour_hi_min_value": 0,
+            "contour_highlight": "off",
+            "contour_hilo": "off",
+            "contour_label": "off",
+            "contour_legend_text": "Contour shade (Range: 0.01 / 40, Greens)",
+            "contour_shade_colour_list": "rgb(0.9686, 0.9882, 0.9608)/rgb(0.8976, 0.9606, 0.8779)/rgb(0.7792, 0.9132, 0.7518)/rgb(0.6293, 0.8500, 0.6061)/rgb(0.4518, 0.7671, 0.4612)/rgb(0.2526, 0.6681, 0.3629)/rgb(0.1340, 0.5423, 0.2683)/rgb(0.0000, 0.4230, 0.1707)/rgb(0.0000, 0.2667, 0.1059)",
+            "contour_level_list": "0.0/5.0/10.0/15.0/20.0/25.0/30.0/35.0/200.0",
+            "contour_level_selection_type": "level_list",
+            "contour_reference_level": 0,
+            "contour": "off",
+            "contour_internal_reduction_factor": "5",
+            "contour_interpolation_floor": "0",
+            "contour_shade": "on",
+            "contour_shade_colour_method": "list",
+            "contour_shade_method": "area_fill",
+            "contour_shade_min_level": 0.01
+        },
+        "legend": {
+            "legend_user_maximum": "on",
+            "legend_user_maximum_text": "",
+            "legend_text_font_size": "0.4",
+            "legend_text_colour": "black"
+        }
+    },
+    "description": "Method :   contour shade\r\nLevel range : 0 to 40\r\nColour        : Greens",
+    "eccharts": false,
+    "enabled": true,
+    "in_production": true,
+    "name": "NAME",
+    "order": 0,
+    "owner": "ecmwf",
+    "package": "eccharts",
+    "thumbnail": {
+        "service": "make_contour_thumbnail"
+    },
+    "title": "Contour shade (Range: 0 / 40, Greens)",
+    "type": "style",
+    "values": {},
+    "variables": []
+}
+

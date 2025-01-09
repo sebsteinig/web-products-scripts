@@ -1,0 +1,74 @@
+{
+    "access": [
+        "public"    
+    ],
+    "availability": {
+        "service": "availability"
+    },
+    "description": "LAYER_DESCRIPTION",
+    "eccharts": false,
+    "enabled": true,
+    "group": "5000 Atmospheric composition (provided by CAMS, the Copernicus Atmosphere Monitoring Service)",
+    "in_production": true,
+    "keywords": "deterministic, SHORT_NAME, LONG_NAME, surface",
+    "meteogram": {
+        "service": "time_series",
+        "style": "time_series_line",
+        "styles": [
+            "time_series_line",
+            "time_series_bar"
+        ]
+    },
+    "name": "LAYER_NAME",
+    "order": 230,
+    "owner": "ecmwf",
+    "package": "eccharts",
+    "plot": {
+        "data": {},
+        "service": "plot"
+    },
+    "preferred_z_index": 0,
+    "probe": {
+        "service": "probe"
+    },
+    "retrieve": {
+        "data": {
+            "base_time": "$base_time",
+            "class": "mc",
+            "constituentType": "$constituent_type",
+            "expver": "$expver",
+            "level": "$level",
+            "levtype": "sfc",
+            "originating_centre": "$originating_centre",
+            "package": "cams_air_quality_forecast",
+            "step": "$step",
+            "stream": "$stream",
+            "time": "$time",
+            "type": "$type"
+        },
+        "service": "retrieve"
+    },
+    "style": "STYLE",
+    "styles": [
+        "STYLE"
+        ],
+    "thumbnail": {
+        "service": "make_layer_thumbnail"
+    },
+    "title": "LONG_NAME at surface [ug/kg3] (provided by CAMS, the Copernicus Atmosphere Monitoring Service)",
+    "type": "layer",
+    "units": {
+        "data": "µg/m3",
+        "display": "µg/m3"
+    },
+    "use_data_unit": false,
+    "values": {
+        "expver": "5001",
+        "level": "key_0",
+        "originating_centre": "85_2",
+        "stream": "oper",
+        "type": "fc"
+    },
+    "variables": [], 
+    "wms": true
+}
