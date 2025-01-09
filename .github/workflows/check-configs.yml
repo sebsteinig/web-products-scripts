@@ -51,8 +51,12 @@ jobs:
         # Create a directory for the comparison results
         mkdir -p comparison-results
         
+        # Initialize a flag to check if previous configs exist
+        previous_configs_exist=false
+        
         # Compare variable config files
         if [ -f "previous-configs/new_var_config.yaml" ]; then
+          previous_configs_exist=true
           diff new_var_config.yaml previous-configs/new_var_config.yaml > comparison-results/var_config_diff.txt || true
         else
           echo "No previous variable config file found."
@@ -60,14 +64,15 @@ jobs:
         
         # Compare style config files
         if [ -f "previous-configs/new_style_config.yaml" ]; then
+          previous_configs_exist=true
           diff new_style_config.yaml previous-configs/new_style_config.yaml > comparison-results/style_config_diff.txt || true
         else
           echo "No previous style config file found."
         fi
 
         # Check if there are any differences
-        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ]; then
-          echo "Differences found in config files."
+        if [ -s comparison-results/var_config_diff.txt ] || [ -s comparison-results/style_config_diff.txt ] || [ "$previous_configs_exist" = true ]; then
+          echo "Differences found in config files or new previous config found."
           echo "::set-output name=config_changed::true"
         else
           echo "No differences found in config files."
