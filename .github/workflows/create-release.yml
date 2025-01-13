@@ -62,6 +62,49 @@ jobs:
         echo "${{ github.event.inputs.version_tag }}" > dist/release/version.txt
         echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > dist/release/generated_at.txt
         
+        # Get previous release info and create diff
+        PREV_RELEASE=$(gh release list --limit 1 | awk '{print $1}')
+        DIFF_SECTION=""
+        
+        if [ ! -z "$PREV_RELEASE" ]; then
+          echo "Found previous release: $PREV_RELEASE"
+          
+          # Create temp directory for previous release
+          mkdir -p prev_release
+          cd prev_release
+          gh release download $PREV_RELEASE
+          cd ..
+          
+          # Generate diff for each JSON file
+          echo -e "\n### Changes from $PREV_RELEASE\n" > diff.md
+          echo '```diff' >> diff.md
+          
+          for file in dist/release/*.json; do
+            filename=$(basename "$file")
+            if [ -f "prev_release/$filename" ]; then
+              echo -e "\n# $filename" >> diff.md
+              diff -u "prev_release/$filename" "$file" | tail -n +3 >> diff.md || true
+            else
+              echo -e "\n# $filename (New file)" >> diff.md
+            fi
+          done
+          
+          # Check for deleted files
+          for file in prev_release/*.json; do
+            filename=$(basename "$file")
+            if [ ! -f "dist/release/$filename" ]; then
+              echo -e "\n# $filename (Deleted)" >> diff.md
+            fi
+          done
+          
+          echo '```' >> diff.md
+          DIFF_SECTION=$(cat diff.md)
+          
+          # Cleanup
+          rm -rf prev_release
+          rm diff.md
+        fi
+        
         # Create README
         cat > dist/release/README.md << EOF
         # CAMS webcharts definitions
@@ -72,28 +115,25 @@ jobs:
         Automatically generated with https://github.com/${{ github.repository }}
         
         This release contains JSON definition files for the CAMS ecCharts web products.
+        
+        $(if [ ! -z "$DIFF_SECTION" ]; then echo "$DIFF_SECTION"; fi)
         EOF
         
     - name: Create Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Delete tag both locally and remotely if it exists
-        if git rev-parse "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
-          echo "Tag exists, deleting..."
-          git tag -d ${{ github.event.inputs.version_tag }} || true
-          git push --delete origin ${{ github.event.inputs.version_tag }} || true
-        fi
-        
         # Delete release if it exists
         if gh release view "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
           echo "Release exists, deleting..."
           gh release delete ${{ github.event.inputs.version_tag }} --yes || true
         fi
         
-        # Create fresh tag and release
-        git tag ${{ github.event.inputs.version_tag }}
-        git push origin ${{ github.event.inputs.version_tag }}
+        # Create fresh tag if it doesn't exist
+        if ! git rev-parse "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
+          git tag ${{ github.event.inputs.version_tag }}
+          git push origin ${{ github.event.inputs.version_tag }}
+        fi
         
         # Create GitHub release with all files
         cd dist/release
