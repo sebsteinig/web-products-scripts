@@ -17,8 +17,7 @@ on:
           - production
 
 permissions:
-  contents: write  # Needed for creating and pushing tags
-  packages: read   # Needed for downloading packages
+  contents: write  # Needed for creating deployment tags and updating history
 
 jobs:
   deploy:
@@ -28,33 +27,22 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        registry-url: 'https://npm.pkg.github.com'
-        scope: '@${{ github.repository_owner }}'
-    
-    - name: Download package
+    - name: Download release
       env:
-        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Create temp directory for package
-        mkdir -p package-files
-        cd package-files
+        # Create directory for release files
+        mkdir -p release-files
+        cd release-files
         
-        # Initialize package.json to allow npm install
-        echo '{"name":"temp","version":"1.0.0"}' > package.json
-        
-        # Install the specific version
-        npm install @${{ github.repository_owner }}/cams-webcharts-definitions@${{ github.event.inputs.version_tag }}
-        
-        # Copy files from node_modules to current directory
-        cp -r node_modules/@${{ github.repository_owner }}/cams-webcharts-definitions/* .
+        # Download and extract release
+        gh release download ${{ github.event.inputs.version_tag }} --pattern "*.zip"
+        unzip *.zip
+        rm *.zip
     
     - name: Verify version
       run: |
-        cd package-files
+        cd release-files
         if [ ! -f "version.txt" ]; then
           echo "Version file not found"
           exit 1
@@ -94,9 +82,9 @@ jobs:
         environment = '${{ github.event.inputs.environment }}'
         
         # Read version metadata
-        with open('package-files/version.txt', 'r') as f:
+        with open('release-files/version.txt', 'r') as f:
             stored_version = f.read().strip()
-        with open('package-files/generated_at.txt', 'r') as f:
+        with open('release-files/generated_at.txt', 'r') as f:
             generated_at = f.read().strip()
             
         # Verify version matches
@@ -116,9 +104,9 @@ jobs:
         db.deployments.insert_one(deployment_info)
         
         # Update or insert JSON files
-        for filename in os.listdir('package-files'):
+        for filename in os.listdir('release-files'):
             if filename.endswith('.json'):
-                with open(f'package-files/{filename}', 'r') as f:
+                with open(f'release-files/{filename}', 'r') as f:
                     data = json.load(f)
                     
                 # Store in versioned collection
@@ -134,7 +122,54 @@ jobs:
         print(f"Successfully deployed version {version_tag} to {environment}")
         print(f"Generated at: {generated_at}")
         print(f"Deployed at: {deployment_info['deployed_at']}")
+        
+        # Save deployment info for history
+        print("::set-output name=deployment_info::" + json.dumps(deployment_info))
         EOF
+        
+    - name: Update deployment history
+      run: |
+        # Configure git
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions@github.com"
+        
+        # Create or update deployment history file
+        HISTORY_FILE="deployment_history.json"
+        if [ ! -f "$HISTORY_FILE" ]; then
+          echo "[]" > "$HISTORY_FILE"
+        fi
+        
+        # Add new deployment to history
+        python - <<EOF
+        import json
+        import sys
+        from datetime import datetime
+        
+        # Read existing history
+        with open('deployment_history.json', 'r') as f:
+            history = json.load(f)
+        
+        # Create new deployment entry
+        deployment = {
+            'version': '${{ github.event.inputs.version_tag }}',
+            'environment': '${{ github.event.inputs.environment }}',
+            'deployed_at': datetime.utcnow().isoformat(),
+            'deployed_by': '${{ github.actor }}',
+            'commit': '${{ github.sha }}'
+        }
+        
+        # Add to history (at the beginning)
+        history.insert(0, deployment)
+        
+        # Write updated history
+        with open('deployment_history.json', 'w') as f:
+            json.dump(history, f, indent=2)
+        EOF
+        
+        # Commit and push changes
+        git add deployment_history.json
+        git commit -m "Update deployment history: ${{ github.event.inputs.version_tag }} to ${{ github.event.inputs.environment }}"
+        git push
         
     - name: Create deployment tag
       if: github.event.inputs.environment == 'production'

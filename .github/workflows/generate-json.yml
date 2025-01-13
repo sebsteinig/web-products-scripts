@@ -9,8 +9,7 @@ on:
         type: string
 
 permissions:
-  contents: read
-  packages: write  # Needed for publishing packages
+  contents: write  # Needed for creating releases
 
 jobs:
   generate:
@@ -52,72 +51,50 @@ jobs:
         python create_forecast_layers.py
         python create_forecast_styles.py
         
-    - name: Prepare package
+    - name: Prepare release files
       run: |
-        # Create package directory
-        mkdir -p dist/package
-        cp layers/*.json dist/package/
-        cp styles/*.json dist/package/
+        # Create release directory
+        mkdir -p dist/release
+        cp layers/*.json dist/release/
+        cp styles/*.json dist/release/
         
         # Add metadata
-        echo "${{ github.event.inputs.version_tag }}" > dist/package/version.txt
-        echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > dist/package/generated_at.txt
-        
-        # Create package.json for npm package
-        cat > dist/package/package.json << EOF
-        {
-          "name": "@${{ github.repository_owner }}/cams-webcharts-definitions",
-          "version": "${{ github.event.inputs.version_tag }}",
-          "description": "Generated forecast data files",
-          "files": [
-            "*.json",
-            "version.txt",
-            "generated_at.txt"
-          ],
-          "repository": {
-            "type": "git",
-            "url": "git+https://github.com/${{ github.repository }}.git"
-          },
-          "publishConfig": {
-            "registry": "https://npm.pkg.github.com"
-          }
-        }
-        EOF
+        echo "${{ github.event.inputs.version_tag }}" > dist/release/version.txt
+        echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > dist/release/generated_at.txt
         
         # Create README
-        cat > dist/package/README.md << EOF
-        # Forecast Data Package
+        cat > dist/release/README.md << EOF
+        # CAMS WebCharts Definitions
         
         Version: ${{ github.event.inputs.version_tag }}
-        Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-
-        Automatically generated with https://github.com/sebsteinig/web-products-scripts
+        Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
         
-        This package contains JSON definition files for the CAMS ecCharts web products.
+        Automatically generated with https://github.com/${{ github.repository }}
+        
+        This release contains JSON definition files for the CAMS ecCharts web products.
         EOF
         
-        # Create tarball
-        cd dist/package
-        npm pack
-        mv *.tgz ../
+        # Create zip archive
+        cd dist/release
+        zip -r ../cams-webcharts-definitions-${{ github.event.inputs.version_tag }}.zip *
         
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        registry-url: 'https://npm.pkg.github.com'
-        scope: '@${{ github.repository_owner }}'
-        
-    - name: Publish to GitHub Packages
+    - name: Create Release
       env:
-        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cd dist/package
-        npm publish --access public
+        # Create git tag
+        git tag ${{ github.event.inputs.version_tag }}
+        git push origin ${{ github.event.inputs.version_tag }}
+        
+        # Create GitHub release
+        gh release create ${{ github.event.inputs.version_tag }} \
+          --title "CAMS WebCharts Definitions ${{ github.event.inputs.version_tag }}" \
+          --notes-file dist/release/README.md \
+          dist/cams-webcharts-definitions-${{ github.event.inputs.version_tag }}.zip
         
     - name: Upload artifact for deployment
       uses: actions/upload-artifact@v4
       with:
         name: json-files-${{ github.event.inputs.version_tag }}
-        path: dist/package
+        path: dist/release
         retention-days: 90 
