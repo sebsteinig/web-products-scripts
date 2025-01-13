@@ -103,7 +103,7 @@ jobs:
         if [ -f "previous-configs/new_var_config.yaml" ]; then
           previous_configs_exist=true
           echo "Comparing variable config files..."
-          if ! diff new_var_config.yaml previous-configs/new_var_config.yaml > comparison-results/var_config_diff.txt; then
+          if ! diff previous-configs/new_var_config.yaml new_var_config.yaml > comparison-results/var_config_diff.txt; then
             echo "Differences found in variable config:"
             cat comparison-results/var_config_diff.txt
             var_diff=$(cat comparison-results/var_config_diff.txt)
@@ -117,7 +117,7 @@ jobs:
         if [ -f "previous-configs/new_style_config.yaml" ]; then
           previous_configs_exist=true
           echo "Comparing style config files..."
-          if ! diff new_style_config.yaml previous-configs/new_style_config.yaml > comparison-results/style_config_diff.txt; then
+          if ! diff previous-configs/new_style_config.yaml new_style_config.yaml > comparison-results/style_config_diff.txt; then
             echo "Differences found in style config:"
             cat comparison-results/style_config_diff.txt
             style_diff=$(cat comparison-results/style_config_diff.txt)
