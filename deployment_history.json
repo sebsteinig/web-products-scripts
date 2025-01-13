@@ -2,6 +2,13 @@
   {
     "version": "v0.0.2",
     "environment": "dev",
+    "deployed_at": "2025-01-13T16:07:06.237920",
+    "deployed_by": "sebsteinig",
+    "commit": "3823b22efbdcb7db0560d56f4e75d6a09ef238df"
+  },
+  {
+    "version": "v0.0.2",
+    "environment": "dev",
     "deployed_at": "2025-01-13T15:33:54.354310",
     "deployed_by": "sebsteinig",
     "commit": "5f2e64211ba53cde9be052213d115210a3c7bd12"
