@@ -79,26 +79,18 @@ jobs:
           gh release download --pattern "*.json" --pattern "version.txt" --pattern "generated_at.txt"
           cd ..
           
-          # Initialize diff.md only if we find changes
-          FOUND_CHANGES=false
-          TEMP_DIFF=$(mktemp)
-          echo -e "\n### Changes from $PREV_RELEASE\n" > "$TEMP_DIFF"
-          echo '```diff' >> "$TEMP_DIFF"
+          # Generate diff for each JSON file
+          echo -e "\n### Changes from $PREV_RELEASE\n" > diff.md
+          echo '```diff' >> diff.md
           
-          # Check for modified files
           for file in dist/release/*.json; do
             filename=$(basename "$file")
             if [ -f "prev_release/$filename" ]; then
-              # Only add to diff if files are different
-              if ! cmp -s "$file" "prev_release/$filename"; then
-                FOUND_CHANGES=true
-                echo -e "\n# $filename" >> "$TEMP_DIFF"
-                # Reverse the diff order by switching the file order
-                diff -u "$file" "prev_release/$filename" | tail -n +3 | sed 's/^-/±/;s/^+/-/;s/^±/+/' >> "$TEMP_DIFF" || true
-              fi
+              # echo -e "\n# $filename" >> diff.md
+              # Reverse the diff order by switching the file order
+              diff -u "$file" "prev_release/$filename" | tail -n +3 | sed 's/^-/±/;s/^+/-/;s/^±/+/' >> diff.md || true
             else
-              FOUND_CHANGES=true
-              echo -e "\n# $filename (New file)" >> "$TEMP_DIFF"
+              echo -e "\n# $filename (New file)" >> diff.md
             fi
           done
           
@@ -106,21 +98,16 @@ jobs:
           for file in prev_release/*.json; do
             filename=$(basename "$file")
             if [ ! -f "dist/release/$filename" ]; then
-              FOUND_CHANGES=true
-              echo -e "\n# $filename (Deleted)" >> "$TEMP_DIFF"
+              echo -e "\n# $filename (Deleted)" >> diff.md
             fi
           done
           
-          echo '```' >> "$TEMP_DIFF"
-          
-          # Only set DIFF_SECTION if changes were found
-          if [ "$FOUND_CHANGES" = true ]; then
-            DIFF_SECTION=$(cat "$TEMP_DIFF")
-          fi
+          echo '```' >> diff.md
+          DIFF_SECTION=$(cat diff.md)
           
           # Cleanup
           rm -rf prev_release
-          rm "$TEMP_DIFF"
+          rm diff.md
         fi
         
         # Create README
