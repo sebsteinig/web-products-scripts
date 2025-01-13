@@ -88,7 +88,7 @@ jobs:
         
         # Create GitHub release
         gh release create ${{ github.event.inputs.version_tag }} \
-          --title "CAMS WebCharts Definitions ${{ github.event.inputs.version_tag }}" \
+          --title "webchart-definitions-${{ github.event.inputs.version_tag }}" \
           --notes-file dist/release/README.md \
           dist/cams-webcharts-definitions-${{ github.event.inputs.version_tag }}.zip
         
