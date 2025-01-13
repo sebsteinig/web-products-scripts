@@ -76,8 +76,7 @@ jobs:
           cd prev_release
           
           # Download all assets from previous release
-          gh release download "$PREV_RELEASE"
-          echo "downloaded release: $PREV_RELEASE"
+          gh release download --pattern "*.json" --pattern "version.txt" --pattern "generated_at.txt"
           cd ..
           
           # Generate diff for each JSON file
