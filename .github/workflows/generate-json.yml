@@ -89,9 +89,11 @@ jobs:
         # Forecast Data Package
         
         Version: ${{ github.event.inputs.version_tag }}
-        Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+        Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+        Automatically generated with https://github.com/sebsteinig/web-products-scripts
         
-        This package contains generated forecast data files.
+        This package contains JSON definition files for the CAMS ecCharts web products.
         EOF
         
         # Create tarball
