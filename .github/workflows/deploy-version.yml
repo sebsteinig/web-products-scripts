@@ -47,10 +47,10 @@ jobs:
         echo '{"name":"temp","version":"1.0.0"}' > package.json
         
         # Install the specific version
-        npm install @${{ github.repository_owner }}/forecast-data@${{ github.event.inputs.version_tag }}
+        npm install @${{ github.repository_owner }}/cams-webcharts-definitions@${{ github.event.inputs.version_tag }}
         
         # Copy files from node_modules to current directory
-        cp -r node_modules/@${{ github.repository_owner }}/forecast-data/* .
+        cp -r node_modules/@${{ github.repository_owner }}/cams-webcharts-definitions/* .
     
     - name: Verify version
       run: |
