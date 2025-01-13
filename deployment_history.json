@@ -1,5 +1,12 @@
 [
   {
+    "version": "v0.0.3",
+    "environment": "dev",
+    "deployed_at": "2025-01-13T16:13:19.175560",
+    "deployed_by": "sebsteinig",
+    "commit": "1d02c774d56ec08d945828b7cb5c09c7785c773f"
+  },
+  {
     "version": "v0.0.2",
     "environment": "dev",
     "deployed_at": "2025-01-13T16:08:08.422777",
