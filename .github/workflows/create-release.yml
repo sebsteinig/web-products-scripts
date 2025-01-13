@@ -74,32 +74,30 @@ jobs:
         This release contains JSON definition files for the CAMS ecCharts web products.
         EOF
         
-        # Create zip archive
-        cd dist/release
-        zip -r ../webcharts-definitions-${{ github.event.inputs.version_tag }}.zip *
-        
     - name: Create Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Check if tag exists
+        # Delete tag both locally and remotely if it exists
         if git rev-parse "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
-          echo "::error::Tag ${{ github.event.inputs.version_tag }} already exists"
-          exit 1
+          echo "Tag exists, deleting..."
+          git tag -d ${{ github.event.inputs.version_tag }} || true
+          git push --delete origin ${{ github.event.inputs.version_tag }} || true
         fi
         
-        # Check if release exists
+        # Delete release if it exists
         if gh release view "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
-          echo "::error::Release ${{ github.event.inputs.version_tag }} already exists"
-          exit 1
+          echo "Release exists, deleting..."
+          gh release delete ${{ github.event.inputs.version_tag }} --yes || true
         fi
         
-        # Create git tag
+        # Create fresh tag and release
         git tag ${{ github.event.inputs.version_tag }}
         git push origin ${{ github.event.inputs.version_tag }}
         
-        # Create GitHub release
+        # Create GitHub release with all files
+        cd dist/release
         gh release create ${{ github.event.inputs.version_tag }} \
           --title "webchart-definitions-${{ github.event.inputs.version_tag }}" \
-          --notes-file dist/release/README.md \
-          dist/webcharts-definitions-${{ github.event.inputs.version_tag }}.zip
+          --notes-file README.md \
+          *

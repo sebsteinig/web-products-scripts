@@ -46,16 +46,18 @@ jobs:
         mkdir -p release-files
         cd release-files
         
-        # Download release assets
-        gh release download ${{ github.event.inputs.version_tag }} --pattern "*.zip"
-        
-        # Extract and cleanup
-        unzip *.zip
-        rm *.zip
+        # Download all release assets
+        gh release download ${{ github.event.inputs.version_tag }}
         
         # Verify we have the expected files
         if [ ! -f "version.txt" ] || [ ! -f "generated_at.txt" ]; then
           echo "Required metadata files not found in release"
+          exit 1
+        fi
+        
+        # Verify we have JSON files
+        if [ $(find . -name "*.json" | wc -l) -eq 0 ]; then
+          echo "No JSON files found in release"
           exit 1
         fi
     
