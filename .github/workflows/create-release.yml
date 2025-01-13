@@ -74,7 +74,9 @@ jobs:
           # Create temp directory for previous release
           mkdir -p prev_release
           cd prev_release
-          gh release download "$PREV_RELEASE" --pattern "*.json" --pattern "version.txt" --pattern "generated_at.txt"
+          
+          # Download all assets from previous release
+          gh release download "$PREV_RELEASE"
           cd ..
           
           # Generate diff for each JSON file
