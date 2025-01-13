@@ -59,13 +59,19 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        # Get the latest artifact info
         artifact_info=$(gh api repos/${{ github.repository }}/actions/artifacts \
           --jq '.artifacts | map(select(.name == "config-files")) | sort_by(.created_at) | last')
         
         if [ "$(echo "$artifact_info" | jq -r '.id')" != "null" ]; then
           artifact_id=$(echo "$artifact_info" | jq -r '.id')
-          gh api repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
-            -H "Accept: application/vnd.github+json" --output config-files.zip
+          
+          # Download the artifact using gh api with proper redirection
+          gh api \
+            repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
+            -H "Accept: application/vnd.github+json" > config-files.zip
+            
+          # Unzip the downloaded file
           unzip -q config-files.zip -d previous-configs || echo "Failed to unzip artifact"
         else
           echo "No previous artifact found"
