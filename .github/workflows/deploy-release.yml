@@ -12,9 +12,8 @@ on:
         required: true
         type: choice
         options:
-          - development
-          - staging
-          - production
+          - dev
+          - prod
 
 permissions:
   contents: write  # Needed for creating deployment tags and updating history
@@ -82,70 +81,70 @@ jobs:
         python -m pip install --upgrade pip
         pip install pymongo python-dotenv
         
-    - name: Deploy to MongoDB
-      env:
-        MONGODB_URI: ${{ secrets.MONGODB_URI }}
-        MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
-      run: |
-        python - <<EOF
-        import os
-        import json
-        from datetime import datetime
-        from pymongo import MongoClient
+    # - name: Deploy to MongoDB
+    #   env:
+    #     MONGODB_URI: ${{ secrets.MONGODB_URI }}
+    #     MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+    #   run: |
+    #     python - <<EOF
+    #     import os
+    #     import json
+    #     from datetime import datetime
+    #     from pymongo import MongoClient
         
-        # Connect to MongoDB
-        client = MongoClient(os.environ['MONGODB_URI'])
-        db = client[os.environ['MONGODB_DATABASE']]
+    #     # Connect to MongoDB
+    #     client = MongoClient(os.environ['MONGODB_URI'])
+    #     db = client[os.environ['MONGODB_DATABASE']]
         
-        # Get deployment info
-        version_tag = '${{ github.event.inputs.version_tag }}'
-        environment = '${{ github.event.inputs.environment }}'
+    #     # Get deployment info
+    #     version_tag = '${{ github.event.inputs.version_tag }}'
+    #     environment = '${{ github.event.inputs.environment }}'
         
-        # Read version metadata
-        with open('release-files/version.txt', 'r') as f:
-            stored_version = f.read().strip()
-        with open('release-files/generated_at.txt', 'r') as f:
-            generated_at = f.read().strip()
+    #     # Read version metadata
+    #     with open('release-files/version.txt', 'r') as f:
+    #         stored_version = f.read().strip()
+    #     with open('release-files/generated_at.txt', 'r') as f:
+    #         generated_at = f.read().strip()
             
-        # Verify version matches
-        if stored_version != version_tag:
-            raise ValueError(f"Version mismatch: {stored_version} != {version_tag}")
+    #     # Verify version matches
+    #     if stored_version != version_tag:
+    #         raise ValueError(f"Version mismatch: {stored_version} != {version_tag}")
         
-        # Create deployment record
-        deployment_info = {
-            'version': version_tag,
-            'environment': environment,
-            'generated_at': generated_at,
-            'deployed_at': datetime.utcnow().isoformat(),
-            'deployed_by': '${{ github.actor }}'
-        }
+    #     # Create deployment record
+    #     deployment_info = {
+    #         'version': version_tag,
+    #         'environment': environment,
+    #         'generated_at': generated_at,
+    #         'deployed_at': datetime.utcnow().isoformat(),
+    #         'deployed_by': '${{ github.actor }}'
+    #     }
         
-        # Store deployment record
-        db.deployments.insert_one(deployment_info)
+    #     # Store deployment record
+    #     db.deployments.insert_one(deployment_info)
         
-        # Update or insert JSON files
-        for filename in os.listdir('release-files'):
-            if filename.endswith('.json'):
-                with open(f'release-files/{filename}', 'r') as f:
-                    data = json.load(f)
+    #     # Update or insert JSON files
+    #     for filename in os.listdir('release-files'):
+    #         if filename.endswith('.json'):
+    #             with open(f'release-files/{filename}', 'r') as f:
+    #                 data = json.load(f)
                     
-                # Store in versioned collection
-                versioned_collection = f"{filename.replace('.json', '')}_{version_tag.replace('.', '_')}"
-                db[versioned_collection].insert_many(data if isinstance(data, list) else [data])
+    #             # Store in versioned collection
+    #             versioned_collection = f"{filename.replace('.json', '')}_{version_tag.replace('.', '_')}"
+    #             db[versioned_collection].insert_many(data if isinstance(data, list) else [data])
                 
-                # Update current collection
-                if environment == 'production':
-                    current_collection = filename.replace('.json', '')
-                    db[current_collection].delete_many({})
-                    db[current_collection].insert_many(data if isinstance(data, list) else [data])
+    #             # Update current collection
+    #             if environment == 'production':
+    #                 current_collection = filename.replace('.json', '')
+    #                 db[current_collection].delete_many({})
+    #                 db[current_collection].insert_many(data if isinstance(data, list) else [data])
         
-        print(f"Successfully deployed version {version_tag} to {environment}")
-        print(f"Generated at: {generated_at}")
-        print(f"Deployed at: {deployment_info['deployed_at']}")
+    #     print(f"Successfully deployed version {version_tag} to {environment}")
+    #     print(f"Generated at: {generated_at}")
+    #     print(f"Deployed at: {deployment_info['deployed_at']}")
         
-        # Save deployment info for history
-        print("::set-output name=deployment_info::" + json.dumps(deployment_info))
-        EOF
+    #     # Save deployment info for history
+    #     print("::set-output name=deployment_info::" + json.dumps(deployment_info))
+    #     EOF
         
     - name: Update deployment history
       run: |

@@ -64,7 +64,7 @@ jobs:
         
         # Create README
         cat > dist/release/README.md << EOF
-        # CAMS WebCharts Definitions
+        # CAMS webcharts definitions
         
         Version: ${{ github.event.inputs.version_tag }}
         Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
