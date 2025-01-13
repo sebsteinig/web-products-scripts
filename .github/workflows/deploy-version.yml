@@ -16,6 +16,10 @@ on:
           - staging
           - production
 
+permissions:
+  contents: write  # Needed for creating and pushing tags
+  packages: read   # Needed for downloading packages
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -23,14 +27,37 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
-      with:
-        ref: versioned-output  # Checkout the versioned-output branch
-        fetch-depth: 1 # We only need the latest commit
     
-    - name: Verify version exists
+    - name: Download package
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        if [ ! -d "${{ github.event.inputs.version_tag }}" ]; then
-          echo "Version ${{ github.event.inputs.version_tag }} not found in versioned-output branch"
+        # Configure npm
+        echo "@${{ github.repository_owner }}:registry=https://npm.pkg.github.com" > .npmrc
+        echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+        
+        # Create temp directory for package
+        mkdir -p package-files
+        cd package-files
+        
+        # Initialize package.json to allow npm install
+        echo '{"name":"temp","version":"1.0.0"}' > package.json
+        
+        # Install the specific version
+        npm install @${{ github.repository_owner }}/forecast-data@${{ github.event.inputs.version_tag }}
+        
+        # Copy files from node_modules to current directory
+        cp -r node_modules/@${{ github.repository_owner }}/forecast-data/* .
+    
+    - name: Verify version
+      run: |
+        cd package-files
+        if [ ! -f "version.txt" ]; then
+          echo "Version file not found"
+          exit 1
+        fi
+        if [ "$(cat version.txt)" != "${{ github.event.inputs.version_tag }}" ]; then
+          echo "Version mismatch: $(cat version.txt) != ${{ github.event.inputs.version_tag }}"
           exit 1
         fi
     
@@ -64,9 +91,9 @@ jobs:
         environment = '${{ github.event.inputs.environment }}'
         
         # Read version metadata
-        with open(f'{version_tag}/version.txt', 'r') as f:
+        with open('package-files/version.txt', 'r') as f:
             stored_version = f.read().strip()
-        with open(f'{version_tag}/generated_at.txt', 'r') as f:
+        with open('package-files/generated_at.txt', 'r') as f:
             generated_at = f.read().strip()
             
         # Verify version matches
@@ -86,9 +113,9 @@ jobs:
         db.deployments.insert_one(deployment_info)
         
         # Update or insert JSON files
-        for filename in os.listdir(version_tag):
+        for filename in os.listdir('package-files'):
             if filename.endswith('.json'):
-                with open(f'{version_tag}/{filename}', 'r') as f:
+                with open(f'package-files/{filename}', 'r') as f:
                     data = json.load(f)
                     
                 # Store in versioned collection
@@ -109,8 +136,5 @@ jobs:
     - name: Create deployment tag
       if: github.event.inputs.environment == 'production'
       run: |
-        # Switch to main branch to create the tag
-        git fetch origin main
-        git checkout main
         git tag "deployed-${{ github.event.inputs.version_tag }}-$(date +%Y%m%d%H%M%S)"
         git push origin "deployed-${{ github.event.inputs.version_tag }}-$(date +%Y%m%d%H%M%S)" 
