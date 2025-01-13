@@ -26,8 +26,20 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for tag history
     
-    - name: Download release
+    - name: Verify release exists
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Check if release exists
+        if ! gh release view ${{ github.event.inputs.version_tag }}; then
+          echo "Release ${{ github.event.inputs.version_tag }} not found"
+          exit 1
+        fi
+    
+    - name: Download release assets
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -35,10 +47,18 @@ jobs:
         mkdir -p release-files
         cd release-files
         
-        # Download and extract release
+        # Download release assets
         gh release download ${{ github.event.inputs.version_tag }} --pattern "*.zip"
+        
+        # Extract and cleanup
         unzip *.zip
         rm *.zip
+        
+        # Verify we have the expected files
+        if [ ! -f "version.txt" ] || [ ! -f "generated_at.txt" ]; then
+          echo "Required metadata files not found in release"
+          exit 1
+        fi
     
     - name: Verify version
       run: |
@@ -172,7 +192,20 @@ jobs:
         git push
         
     - name: Create deployment tag
-      if: github.event.inputs.environment == 'production'
       run: |
-        git tag "deployed-${{ github.event.inputs.version_tag }}-$(date +%Y%m%d%H%M%S)"
-        git push origin "deployed-${{ github.event.inputs.version_tag }}-$(date +%Y%m%d%H%M%S)" 
+        # Get release commit SHA
+        RELEASE_SHA=$(gh release view ${{ github.event.inputs.version_tag }} --json targetCommitish --jq .targetCommitish)
+        
+        # Create deployment tag with metadata
+        DEPLOY_TAG="deploy/${{ github.event.inputs.environment }}/${{ github.event.inputs.version_tag }}/$(date +%Y%m%d-%H%M%S)"
+        git tag -a "$DEPLOY_TAG" -m "Deployed ${{ github.event.inputs.version_tag }} to ${{ github.event.inputs.environment }}
+        
+        Release: ${{ github.event.inputs.version_tag }}
+        Environment: ${{ github.event.inputs.environment }}
+        Deployed by: ${{ github.actor }}
+        Deployed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+        Release commit: ${RELEASE_SHA}
+        Deploy commit: ${{ github.sha }}"
+        
+        # Push the tag
+        git push origin "$DEPLOY_TAG" 
