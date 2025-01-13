@@ -82,6 +82,18 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        # Check if tag exists
+        if git rev-parse "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
+          echo "::error::Tag ${{ github.event.inputs.version_tag }} already exists"
+          exit 1
+        fi
+        
+        # Check if release exists
+        if gh release view "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
+          echo "::error::Release ${{ github.event.inputs.version_tag }} already exists"
+          exit 1
+        fi
+        
         # Create git tag
         git tag ${{ github.event.inputs.version_tag }}
         git push origin ${{ github.event.inputs.version_tag }}
