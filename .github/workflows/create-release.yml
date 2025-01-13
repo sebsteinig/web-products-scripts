@@ -1,4 +1,4 @@
-name: Generate JSON Files
+name: Create Release
 
 on:
   workflow_dispatch:
@@ -76,7 +76,7 @@ jobs:
         
         # Create zip archive
         cd dist/release
-        zip -r ../cams-webcharts-definitions-${{ github.event.inputs.version_tag }}.zip *
+        zip -r ../webcharts-definitions-${{ github.event.inputs.version_tag }}.zip *
         
     - name: Create Release
       env:
@@ -90,11 +90,4 @@ jobs:
         gh release create ${{ github.event.inputs.version_tag }} \
           --title "webchart-definitions-${{ github.event.inputs.version_tag }}" \
           --notes-file dist/release/README.md \
-          dist/cams-webcharts-definitions-${{ github.event.inputs.version_tag }}.zip
-        
-    - name: Upload artifact for deployment
-      uses: actions/upload-artifact@v4
-      with:
-        name: json-files-${{ github.event.inputs.version_tag }}
-        path: dist/release
-        retention-days: 90 
+          dist/webcharts-definitions-${{ github.event.inputs.version_tag }}.zip

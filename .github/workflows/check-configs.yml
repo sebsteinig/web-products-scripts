@@ -15,7 +15,7 @@
 # - Creates GitHub issues detailing detected changes (to allow for manual updates)
 # - Stores latest configs as artifacts (as a new comparison reference)
 
-name: Check External Configs
+name: Check External Config Changes
 
 on:
   schedule:
