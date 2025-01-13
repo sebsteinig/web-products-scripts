@@ -2,6 +2,11 @@ name: Generate JSON Files
 
 on:
   workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag for the generated files (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
   generate:
@@ -9,6 +14,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for all branches
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -24,6 +31,7 @@ jobs:
       run: |
         mkdir -p layers
         mkdir -p styles
+        mkdir -p versions/${{ github.event.inputs.version_tag }}
         
     - name: Set up environment variables
       env:
@@ -42,14 +50,54 @@ jobs:
         python create_forecast_layers.py
         python create_forecast_styles.py
         
-    - name: Upload layer files
-      uses: actions/upload-artifact@v4
-      with:
-        name: layer-files
-        path: layers/*.json
+    - name: Copy files to versioned directory
+      run: |
+        cp layers/*.json versions/${{ github.event.inputs.version_tag }}/
+        cp styles/*.json versions/${{ github.event.inputs.version_tag }}/
+        echo "${{ github.event.inputs.version_tag }}" > versions/${{ github.event.inputs.version_tag }}/version.txt
+        echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > versions/${{ github.event.inputs.version_tag }}/generated_at.txt
         
-    - name: Upload style files
+    - name: Store version in versions branch
+      run: |
+        # Configure git
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions@github.com"
+        
+        # Create or switch to versions branch
+        git fetch origin versions || true
+        if git rev-parse --verify origin/versions >/dev/null 2>&1; then
+          git checkout versions
+        else
+          git checkout --orphan versions
+          git rm -rf .
+          echo "# Generated Versions" > README.md
+          git add README.md
+          git commit -m "Initialize versions branch"
+        fi
+        
+        # Copy version files
+        mkdir -p ${{ github.event.inputs.version_tag }}
+        cp -r versions/${{ github.event.inputs.version_tag }}/* ${{ github.event.inputs.version_tag }}/
+        
+        # Add and commit
+        git add ${{ github.event.inputs.version_tag }}
+        git commit -m "Add version ${{ github.event.inputs.version_tag }}"
+        git push origin versions
+        
+        # Return to original branch
+        git checkout -
+        
+    - name: Upload current files
       uses: actions/upload-artifact@v4
       with:
-        name: style-files
-        path: styles/*.json 
+        name: json-files-current
+        path: |
+          layers/*.json
+          styles/*.json
+        
+    - name: Upload versioned files
+      uses: actions/upload-artifact@v4
+      with:
+        name: json-files-${{ github.event.inputs.version_tag }}
+        path: versions/${{ github.event.inputs.version_tag }}
+        retention-days: 90 

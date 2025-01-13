@@ -1,8 +1,25 @@
+# This workflow monitors external configuration files for changes and manages the update process.
+# 
+# Purpose:
+# - Runs daily to check for changes in external config files (variable and style configs)
+# - Downloads configs from Bitbucket and GitHub repositories
+# - Compares new configs with previously stored versions
+# - Creates issues when changes are detected
+# - Maintains an artifact history of config files
+# 
+# Triggers:
+# - Scheduled: Runs daily at midnight UTC
+# - Manual: Can be triggered via workflow_dispatch
+#
+# Outputs:
+# - Creates GitHub issues detailing detected changes (to allow for manual updates)
+# - Stores latest configs as artifacts (as a new comparison reference)
+
 name: Check External Configs
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # runs every 6 hours
+    - cron: '0 0 * * *'  # runs once a day at midnight UTC
   workflow_dispatch:  # allow manual triggers for testing
 
 permissions:
@@ -42,18 +59,16 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # List all artifacts with name "config-files" and find the newest one
-        newest_artifact=$(gh api repos/${{ github.repository }}/actions/artifacts --jq '.artifacts | map(select(.name == "config-files")) | sort_by(.created_at) | last')
-        artifact_id=$(echo "$newest_artifact" | jq -r '.id')
-
-        # Download the latest artifact
-        if [ -n "$artifact_id" ]; then
-          echo "Newest artifact ID found: $artifact_id"
-          echo "Downloading the latest config-files artifact..."
-          gh api repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip -H "Accept: application/vnd.github+json" --method GET > config-files.zip
-          unzip config-files.zip -d previous-configs
+        artifact_info=$(gh api repos/${{ github.repository }}/actions/artifacts \
+          --jq '.artifacts | map(select(.name == "config-files")) | sort_by(.created_at) | last')
+        
+        if [ "$(echo "$artifact_info" | jq -r '.id')" != "null" ]; then
+          artifact_id=$(echo "$artifact_info" | jq -r '.id')
+          gh api repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip \
+            -H "Accept: application/vnd.github+json" --output config-files.zip
+          unzip -q config-files.zip -d previous-configs || echo "Failed to unzip artifact"
         else
-          echo "No artifact found to download."
+          echo "No previous artifact found"
         fi
 
     # Step to download the new config files

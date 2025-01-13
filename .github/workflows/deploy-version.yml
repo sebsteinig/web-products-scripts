@@ -1,0 +1,116 @@
+name: Deploy Version to MongoDB
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: versions  # Checkout the versions branch
+        fetch-depth: 1 # We only need the latest commit
+    
+    - name: Verify version exists
+      run: |
+        if [ ! -d "${{ github.event.inputs.version_tag }}" ]; then
+          echo "Version ${{ github.event.inputs.version_tag }} not found in versions branch"
+          exit 1
+        fi
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pymongo python-dotenv
+        
+    - name: Deploy to MongoDB
+      env:
+        MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+      run: |
+        python - <<EOF
+        import os
+        import json
+        from datetime import datetime
+        from pymongo import MongoClient
+        
+        # Connect to MongoDB
+        client = MongoClient(os.environ['MONGODB_URI'])
+        db = client[os.environ['MONGODB_DATABASE']]
+        
+        # Get deployment info
+        version_tag = '${{ github.event.inputs.version_tag }}'
+        environment = '${{ github.event.inputs.environment }}'
+        
+        # Read version metadata
+        with open(f'{version_tag}/version.txt', 'r') as f:
+            stored_version = f.read().strip()
+        with open(f'{version_tag}/generated_at.txt', 'r') as f:
+            generated_at = f.read().strip()
+            
+        # Verify version matches
+        if stored_version != version_tag:
+            raise ValueError(f"Version mismatch: {stored_version} != {version_tag}")
+        
+        # Create deployment record
+        deployment_info = {
+            'version': version_tag,
+            'environment': environment,
+            'generated_at': generated_at,
+            'deployed_at': datetime.utcnow().isoformat(),
+            'deployed_by': '${{ github.actor }}'
+        }
+        
+        # Store deployment record
+        db.deployments.insert_one(deployment_info)
+        
+        # Update or insert JSON files
+        for filename in os.listdir(version_tag):
+            if filename.endswith('.json'):
+                with open(f'{version_tag}/{filename}', 'r') as f:
+                    data = json.load(f)
+                    
+                # Store in versioned collection
+                versioned_collection = f"{filename.replace('.json', '')}_{version_tag.replace('.', '_')}"
+                db[versioned_collection].insert_many(data if isinstance(data, list) else [data])
+                
+                # Update current collection
+                if environment == 'production':
+                    current_collection = filename.replace('.json', '')
+                    db[current_collection].delete_many({})
+                    db[current_collection].insert_many(data if isinstance(data, list) else [data])
+        
+        print(f"Successfully deployed version {version_tag} to {environment}")
+        print(f"Generated at: {generated_at}")
+        print(f"Deployed at: {deployment_info['deployed_at']}")
+        EOF
+        
+    - name: Create deployment tag
+      if: github.event.inputs.environment == 'production'
+      run: |
+        # Switch to main branch to create the tag
+        git fetch origin main
+        git checkout main
+        git tag "deployed-${{ github.event.inputs.version_tag }}-$(date +%Y%m%d%H%M%S)"
+        git push origin "deployed-${{ github.event.inputs.version_tag }}-$(date +%Y%m%d%H%M%S)" 
