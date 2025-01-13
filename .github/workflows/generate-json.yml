@@ -34,7 +34,7 @@ jobs:
       run: |
         mkdir -p layers
         mkdir -p styles
-        mkdir -p versions/${{ github.event.inputs.version_tag }}
+        mkdir -p temp_versions/${{ github.event.inputs.version_tag }}
         
     - name: Set up environment variables
       env:
@@ -55,10 +55,10 @@ jobs:
         
     - name: Copy files to versioned directory
       run: |
-        cp layers/*.json versions/${{ github.event.inputs.version_tag }}/
-        cp styles/*.json versions/${{ github.event.inputs.version_tag }}/
-        echo "${{ github.event.inputs.version_tag }}" > versions/${{ github.event.inputs.version_tag }}/version.txt
-        echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > versions/${{ github.event.inputs.version_tag }}/generated_at.txt
+        cp layers/*.json temp_versions/${{ github.event.inputs.version_tag }}/
+        cp styles/*.json temp_versions/${{ github.event.inputs.version_tag }}/
+        echo "${{ github.event.inputs.version_tag }}" > temp_versions/${{ github.event.inputs.version_tag }}/version.txt
+        echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > temp_versions/${{ github.event.inputs.version_tag }}/generated_at.txt
         
     - name: Store version in versions branch
       run: |
@@ -66,29 +66,43 @@ jobs:
         git config --global user.name "GitHub Actions Bot"
         git config --global user.email "actions@github.com"
         
-        # Create or switch to versions branch
-        git fetch origin versions || true
-        if git rev-parse --verify origin/versions >/dev/null 2>&1; then
-          git checkout versions
+        # Save current branch name
+        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+        
+        # Clean and create a temporary directory for versions branch
+        rm -rf .git/versions-branch || true
+        mkdir -p .git/versions-branch
+        
+        # Try to fetch the versions branch
+        if git fetch origin versions; then
+          # Branch exists, clone it to a separate directory
+          git worktree add .git/versions-branch versions
         else
+          # Create new orphan branch
+          git worktree add --detach .git/versions-branch
+          cd .git/versions-branch
           git checkout --orphan versions
           git rm -rf .
           echo "# Generated Versions" > README.md
           git add README.md
           git commit -m "Initialize versions branch"
+          cd ../..
         fi
         
-        # Copy version files
+        # Copy new version files
+        cd .git/versions-branch
         mkdir -p ${{ github.event.inputs.version_tag }}
-        cp -r versions/${{ github.event.inputs.version_tag }}/* ${{ github.event.inputs.version_tag }}/
+        cp -r ../../temp_versions/${{ github.event.inputs.version_tag }}/* ${{ github.event.inputs.version_tag }}/
         
         # Add and commit
         git add ${{ github.event.inputs.version_tag }}
         git commit -m "Add version ${{ github.event.inputs.version_tag }}"
         git push origin versions
+        cd ../..
         
-        # Return to original branch
-        git checkout main
+        # Clean up
+        git worktree remove .git/versions-branch
+        git checkout $CURRENT_BRANCH
         
     - name: Upload current files
       uses: actions/upload-artifact@v4
@@ -102,5 +116,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: json-files-${{ github.event.inputs.version_tag }}
-        path: versions/${{ github.event.inputs.version_tag }}
+        path: temp_versions/${{ github.event.inputs.version_tag }}
         retention-days: 90 
