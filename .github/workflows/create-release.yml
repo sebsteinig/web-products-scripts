@@ -52,6 +52,8 @@ jobs:
         python create_forecast_styles.py
         
     - name: Prepare release files
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Create release directory
         mkdir -p dist/release
