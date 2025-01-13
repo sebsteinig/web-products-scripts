@@ -123,17 +123,22 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        # Delete tag both locally and remotely if it exists
+        if git rev-parse "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
+          echo "Tag exists, deleting..."
+          git tag -d ${{ github.event.inputs.version_tag }} || true
+          git push --delete origin ${{ github.event.inputs.version_tag }} || true
+        fi
+        
         # Delete release if it exists
         if gh release view "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
           echo "Release exists, deleting..."
           gh release delete ${{ github.event.inputs.version_tag }} --yes || true
         fi
         
-        # Create fresh tag if it doesn't exist
-        if ! git rev-parse "${{ github.event.inputs.version_tag }}" >/dev/null 2>&1; then
-          git tag ${{ github.event.inputs.version_tag }}
-          git push origin ${{ github.event.inputs.version_tag }}
-        fi
+        # Create fresh tag and release
+        git tag ${{ github.event.inputs.version_tag }}
+        git push origin ${{ github.event.inputs.version_tag }}
         
         # Create GitHub release with all files
         cd dist/release
