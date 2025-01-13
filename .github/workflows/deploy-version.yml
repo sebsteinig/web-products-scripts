@@ -24,13 +24,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: versions  # Checkout the versions branch
+        ref: versioned-output  # Checkout the versioned-output branch
         fetch-depth: 1 # We only need the latest commit
     
     - name: Verify version exists
       run: |
         if [ ! -d "${{ github.event.inputs.version_tag }}" ]; then
-          echo "Version ${{ github.event.inputs.version_tag }} not found in versions branch"
+          echo "Version ${{ github.event.inputs.version_tag }} not found in versioned-output branch"
           exit 1
         fi
     

@@ -60,7 +60,7 @@ jobs:
         echo "${{ github.event.inputs.version_tag }}" > temp_versions/${{ github.event.inputs.version_tag }}/version.txt
         echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > temp_versions/${{ github.event.inputs.version_tag }}/generated_at.txt
         
-    - name: Store version in versions branch
+    - name: Store version in versioned-output branch
       run: |
         # Configure git
         git config --global user.name "GitHub Actions Bot"
@@ -69,39 +69,39 @@ jobs:
         # Save current branch name
         CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
         
-        # Clean and create a temporary directory for versions branch
-        rm -rf .git/versions-branch || true
-        mkdir -p .git/versions-branch
+        # Clean and create a temporary directory for versioned-output branch
+        rm -rf .git/versioned-output-branch || true
+        mkdir -p .git/versioned-output-branch
         
-        # Try to fetch the versions branch
-        if git fetch origin versions; then
+        # Try to fetch the versioned-output branch
+        if git fetch origin versioned-output; then
           # Branch exists, clone it to a separate directory
-          git worktree add .git/versions-branch versions
+          git worktree add .git/versioned-output-branch versioned-output
         else
           # Create new orphan branch
-          git worktree add --detach .git/versions-branch
-          cd .git/versions-branch
-          git checkout --orphan versions
+          git worktree add --detach .git/versioned-output-branch
+          cd .git/versioned-output-branch
+          git checkout --orphan versioned-output
           git rm -rf .
-          echo "# Generated Versions" > README.md
+          echo "# Generated Versioned Outputs" > README.md
           git add README.md
-          git commit -m "Initialize versions branch"
+          git commit -m "Initialize versioned-output branch"
           cd ../..
         fi
         
         # Copy new version files
-        cd .git/versions-branch
+        cd .git/versioned-output-branch
         mkdir -p ${{ github.event.inputs.version_tag }}
         cp -r ../../temp_versions/${{ github.event.inputs.version_tag }}/* ${{ github.event.inputs.version_tag }}/
         
         # Add and commit
         git add ${{ github.event.inputs.version_tag }}
         git commit -m "Add version ${{ github.event.inputs.version_tag }}"
-        git push origin versions
+        git push origin versioned-output
         cd ../..
         
         # Clean up
-        git worktree remove .git/versions-branch
+        git worktree remove .git/versioned-output-branch
         git checkout $CURRENT_BRANCH
         
     - name: Upload current files
