@@ -86,7 +86,7 @@ jobs:
           for file in dist/release/*.json; do
             filename=$(basename "$file")
             if [ -f "prev_release/$filename" ]; then
-              # echo -e "\n# $filename" >> diff.md
+              echo -e "\n# $filename" >> diff.md
               # Reverse the diff order by switching the file order
               diff -u "$file" "prev_release/$filename" | tail -n +3 | sed 's/^-/±/;s/^+/-/;s/^±/+/' >> diff.md || true
             else
