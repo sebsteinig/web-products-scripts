@@ -105,6 +105,8 @@ jobs:
 
         
     - name: Update deployment history
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Configure git
         git config --global user.name "GitHub Actions Bot"
@@ -149,7 +151,8 @@ jobs:
         git push
         
     - name: Create deployment tag
-
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Get release commit SHA
         RELEASE_SHA=$(gh release view ${{ github.event.inputs.version_tag }} --json targetCommitish --jq .targetCommitish)
