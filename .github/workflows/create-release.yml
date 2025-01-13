@@ -65,7 +65,7 @@ jobs:
         echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > dist/release/generated_at.txt
         
         # Get previous release info and create diff
-        PREV_RELEASE=$(gh release list --limit 1 | awk '{print $1}')
+        PREV_RELEASE=$(gh release list --limit 1 | cut -f1)
         DIFF_SECTION=""
         
         if [ ! -z "$PREV_RELEASE" ]; then
@@ -74,7 +74,7 @@ jobs:
           # Create temp directory for previous release
           mkdir -p prev_release
           cd prev_release
-          gh release download $PREV_RELEASE
+          gh release download "$PREV_RELEASE" --pattern "*.json" --pattern "version.txt" --pattern "generated_at.txt"
           cd ..
           
           # Generate diff for each JSON file
@@ -85,7 +85,8 @@ jobs:
             filename=$(basename "$file")
             if [ -f "prev_release/$filename" ]; then
               echo -e "\n# $filename" >> diff.md
-              diff -u "prev_release/$filename" "$file" | tail -n +3 >> diff.md || true
+              # Reverse the diff order by switching the file order
+              diff -u "$file" "prev_release/$filename" | tail -n +3 | sed 's/^-/±/;s/^+/-/;s/^±/+/' >> diff.md || true
             else
               echo -e "\n# $filename (New file)" >> diff.md
             fi
