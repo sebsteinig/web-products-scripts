@@ -19,7 +19,22 @@
         "Parameter": ""
     }, 
     "type": "product", 
-    "variables": [ ], 
+    "variables": [
+        {
+            "labels": [
+                "Europe", "Central Europe", "North West Europe",
+                "North East Europe", "South West Europe", "South East Europe"
+            ],
+            "name": "projection",
+            "title": "Area",
+            "type": "choice",
+            "values": [
+                "classical_europe", "cams_aq_central_europe",
+                "cams_aq_nw_europe", "cams_aq_ne_europe",
+                "cams_aq_sw_europe", "cams_aq_se_europe"
+            ]
+        }
+    ], 
     "viewport": {
         "height": 683,
         "width": 1024

@@ -13,7 +13,7 @@ VAR_CONFIG_FILE = "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/
 STYLE_CONFIG_FILE = "https://raw.githubusercontent.com/CopernicusAtmosphere/air-quality-plot-settings/refs/heads/main/plot_settings.yaml"  # URL or path to plot_settings.yaml
 BITBUCKET_TOKEN = os.getenv("BITBUCKET_TOKEN")  # for access to CONFIG in private Bitbucket repo
 BITBUCKET_USERNAME = os.getenv("BITBUCKET_USERNAME")
-TYPES = ['eea', '9lev', 'web'] # keywords as defined in STYLE_CONFIG_FILE
+TYPES = ['web', 'eea'] # keywords as defined in STYLE_CONFIG_FILE
 
 # Create output directory if it doesn't exist
 Path(STYLEDIR).mkdir(parents=True, exist_ok=True)
