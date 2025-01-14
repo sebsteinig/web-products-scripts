@@ -1,4 +1,5 @@
-name: Deploy Release to ecCharts MongoDB
+# Deploy Release to ecCharts MongoDB
+name: Install Release
 
 on:
   workflow_dispatch:

@@ -1,4 +1,5 @@
-name: Remove Release from ecCharts MongoDB
+# Remove Release from ecCharts MongoDB
+name: Uninstall Release
 
 on:
   workflow_dispatch:
