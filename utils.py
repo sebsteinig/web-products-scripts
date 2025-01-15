@@ -27,7 +27,15 @@ def load_config(config_path):
 def load_template(template_path):
     with open(template_path) as f:
         return json.loads(f.read())
-    
+
+def load_grouping(grouping_file):
+    with open(grouping_file, "r") as f:
+        try:
+            grouping = yaml.safe_load(f)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+    return grouping
 
 def write_layer(outfile, new_layer):
     with open(outfile, "w") as fo:

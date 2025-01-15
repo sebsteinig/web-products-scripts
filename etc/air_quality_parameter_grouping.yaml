@@ -1,0 +1,12 @@
+regulated:
+  list: ["ozone", "nitrogen_dioxide", "particulate_matter_10um", "particulate_matter_2.5um", "carbon_monoxide", "sulphur_dioxide"] 
+  title: "regulated air pollutants"
+other:
+  list: ["ammonia", "formaldehyde", "glyoxal", "nitrogen_monoxide", "non_methane_vocs", "peroxyacyl_nitrates"] 
+  title: "additional indicative tracers: gases"
+pollens:
+  list: ["alder_pollen", "birch_pollen", "grass_pollen", "mugwort_pollen", "olive_pollen", "ragweed_pollen"]
+  title: "pollens"
+aerosol-tracers:
+  list: ["dust", "pm10_wildfires", "secondary_inorganic_aerosol", "residential_elementary_carbon", "total_elementary_carbon", "pm10_sea_salt_dry", "pm2.5_total_organic_matter"]
+  title: "additional indicative tracers: aerosols"
