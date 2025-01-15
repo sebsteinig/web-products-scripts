@@ -7,6 +7,12 @@ import re
 
 def load_config(config_path):
     """Load configuration from either local file or remote Bitbucket URL"""
+    # Check if the config_path is a valid local file
+    if os.path.isfile(config_path):
+        with open(config_path, "r") as f:
+            return yaml.safe_load(f)
+
+    # Check if the config_path is a remote URL
     if 'git.ecmwf.int' in config_path:
         username = os.getenv('BITBUCKET_USERNAME')
         token = os.getenv('BITBUCKET_TOKEN')
@@ -17,6 +23,10 @@ def load_config(config_path):
         
         return yaml.safe_load(response.text)
     else:
+        # Validate if config_path is a valid URL
+        if not config_path.startswith(('http://', 'https://')):
+            raise ValueError(f"Invalid path: {config_path}. It must be a valid local file path or start with 'http://' or 'https://'.")
+        
         # Assume it's a public GitHub repo or local file
         response = requests.get(config_path)
         response.raise_for_status()
