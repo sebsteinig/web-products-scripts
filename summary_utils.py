@@ -109,7 +109,8 @@ def create_dependency_graph(package_summaries, output_dir):
                                 prev_style_id = style_id
     
     # Save the graph
-    graph_file = os.path.join(output_dir, "package_hierarchy")
+    # graph_file = os.path.join(output_dir, "package_hierarchy")
+    graph_file = "./package_hierarchy"
     dot.render(graph_file, format='png', cleanup=True)
     print(f"\nDependency graph saved to: {graph_file}.png")
 

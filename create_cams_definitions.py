@@ -37,7 +37,7 @@ BITBUCKET_TOKEN = os.getenv("BITBUCKET_TOKEN")
 BITBUCKET_USERNAME = os.getenv("BITBUCKET_USERNAME")
 
 # Configuration files
-PACKAGE_CONFIG = "./etc/packages.yaml"
+PACKAGE_CONFIG = "./etc/cams_packages.yaml"
 VAR_CONFIG_FILE = "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/cams-europe-air-quality-forecasts/regional_fc_definitions.yaml?at=refs%2Fheads%2Fprod"
 STYLE_CONFIG_FILE = "https://raw.githubusercontent.com/CopernicusAtmosphere/air-quality-plot-settings/refs/heads/main/plot_settings.yaml"
 
@@ -61,34 +61,43 @@ def process_package(package_name, package_data, templates, configs, type_='web')
     package_dir = f"{PRODUCTDIR}/{package_name}_{type_}"
     Path(package_dir).mkdir(parents=True, exist_ok=True)
 
-    # Track all required layers and styles (using a set to avoid duplicates)
-    required_layers = set()
-    required_styles = set()
+    # Track all required layers and styles (using a dictionary to avoid duplicates)
+    required_layers = {}
+    required_styles = {}
 
     # Process single products
-    for group in package_data["products"]["single"]:
-        for var_name in group["variables"]:
-            var_data = configs["var_config"]["variable"][var_name]
+    # for group in package_data["products"]["single"]:
+    #     for var_name in group["variables"]:
+    #         var_data = configs["var_config"]["variable"].get(var_name)
             
-            # Create product
-            new_product = create_single_product(var_name, var_data, templates["product"], configs["var_config"], type_)
-            outfile = f"{package_dir}/{new_product['name']}-{type_}.json"
-            print(f"Creating product: {outfile}")
-            write_layer(outfile, new_product)
+    #         if var_data is None:
+    #             raise ValueError(f"No variable data found for '{var_name}' in package '{package_name}'.")
 
-            # Track required layer and style
-            short_name, _ = generate_short_names(var_data["backend_api_name"])
-            layer_name = f"composition_europe_{short_name}_forecast_surface"
-            style_name = f"sh_{short_name}_{type_}_surface_concentration"
-            required_layers.add(layer_name)
-            required_styles.add(style_name)
+    #         # Create product
+    #         new_product = create_single_product(var_name, var_data, templates["product"], configs["var_config"], type_)
+    #         outfile = f"{package_dir}/{new_product['name']}-{type_}.json"
+    #         print(f"Creating product: {outfile}")
+    #         write_layer(outfile, new_product)
 
-            # Add to summary
-            package_summary['products'][new_product['name']] = {
-                'type': 'single',
-                'layers': [layer_name],
-                'styles': [style_name]
-            }
+    #         # Track required layer and style
+    #         short_name, _ = generate_short_names(var_data["backend_api_name"])
+    #         layer_name = f"composition_europe_{short_name}_forecast_surface"
+    #         style_name = f"sh_{short_name}_{type_}_surface_concentration"
+
+    #         # Add to required_layers if not already present
+    #         if layer_name not in required_layers:
+    #             required_layers[layer_name] = var_data["backend_api_name"]
+
+    #         # Add to required_styles if not already present
+    #         if style_name not in required_styles:
+    #             required_styles[style_name] = var_data["backend_api_name"]
+
+    #         # Add to summary
+    #         package_summary['products'][new_product['name']] = {
+    #             'type': 'single',
+    #             'layers': [layer_name],
+    #             'styles': [style_name]
+    #         }
 
     # Process grouped products
     for group_name, group_data in package_data["products"]["grouped"].items():
@@ -102,14 +111,24 @@ def process_package(package_name, package_data, templates, configs, type_='web')
         group_layers = []
         group_styles = []
         for var_name in group_data["variables"]:
-            var_data = configs["var_config"]["variable"][var_name]
+            var_data = configs["var_config"]["variable"].get(var_name)
+            
+            if var_data is None:
+                raise ValueError(f"No variable data found for '{var_name}' in package '{package_name}'.")
+
             short_name, _ = generate_short_names(var_data["backend_api_name"])
             layer_name = f"composition_europe_{short_name}_forecast_surface"
             style_name = f"sh_{short_name}_{type_}_surface_concentration"
-            required_layers.add(layer_name)
-            required_styles.add(style_name)
-            group_layers.append(layer_name)
-            group_styles.append(style_name)
+
+            # Add to required_layers if not already present
+            if layer_name not in required_layers:
+                required_layers[layer_name] = var_data["backend_api_name"]
+                group_layers.append(layer_name)
+
+            # Add to required_styles if not already present
+            if style_name not in required_styles:
+                required_styles[style_name] = var_data["backend_api_name"]
+                group_styles.append(style_name)
 
         # Add to summary
         package_summary['products'][new_product['name']] = {
@@ -118,31 +137,31 @@ def process_package(package_name, package_data, templates, configs, type_='web')
             'styles': group_styles
         }
 
-    # Create required layers
+    # Create required layers directly from required_layers
     print("\nCreating required layers...")
-    for var_name in configs["var_config"]["variable"]:
-        var_data = configs["var_config"]["variable"][var_name]
-        short_name, _ = generate_short_names(var_data["backend_api_name"])
-        layer_name = f"composition_europe_{short_name}_forecast_surface"
+    for layer_name, short_name in required_layers.items():
+        var_data = next((v for v in configs["var_config"]["variable"].values() if v["backend_api_name"] == short_name), None)
         
-        if layer_name in required_layers:
-            new_layer = create_layer(var_name, var_data, templates["layer"], configs["var_config"])
-            outfile = f"{LAYERDIR}/{layer_name}.json"
-            print(f"Creating layer: {outfile}")
-            write_layer(outfile, new_layer)
+        if var_data is None:
+            raise ValueError(f"No variable data found for layer '{layer_name}' in package '{package_name}'.")
 
-    # Create required styles
+        new_layer = create_layer(var_name, var_data, templates["layer"], configs["var_config"])
+        outfile = f"{LAYERDIR}/{layer_name}.json"
+        print(f"Creating layer: {outfile}")
+        write_layer(outfile, new_layer)
+
+    # Create required styles directly from required_styles
     print("\nCreating required styles...")
-    for var_name in configs["var_config"]["variable"]:
-        var_data = configs["var_config"]["variable"][var_name]
-        short_name, _ = generate_short_names(var_data["backend_api_name"])
-        style_name = f"sh_{short_name}_{type_}_surface_concentration"
+    for style_name, short_name in required_styles.items():
+        var_data = next((v for v in configs["var_config"]["variable"].values() if v["backend_api_name"] == short_name), None)
         
-        if style_name in required_styles:
-            new_style = create_style(var_name, var_data["backend_api_name"], configs["style_config"], templates["style"], type_)
-            outfile = f"{STYLEDIR}/{style_name}.json"
-            print(f"Creating style: {outfile}")
-            write_layer(outfile, new_style)
+        if var_data is None:
+            raise ValueError(f"No variable data found for style '{style_name}' in package '{package_name}'.")
+
+        new_style = create_style(var_name, var_data["backend_api_name"], configs["style_config"], templates["style"], type_)
+        outfile = f"{STYLEDIR}/{style_name}.json"
+        print(f"Creating style: {outfile}")
+        write_layer(outfile, new_style)
 
     return package_summary
 
@@ -183,3 +202,5 @@ def main():
 
 if __name__ == "__main__":
     main() 
+
+    
