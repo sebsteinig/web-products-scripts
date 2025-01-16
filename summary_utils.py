@@ -175,6 +175,17 @@ def create_summary(package_summaries, output_dir):
     summary_lines.append(f"  - Layers: {len(all_layers)}")
     summary_lines.append(f"  - Styles: {len(all_styles)}")
 
+    summary_lines.append("\nCreated Packages:")
+    summary_lines.append("=" * 80)
+    for package_name, summary in sorted(package_summaries.items()):
+        summary_lines.append(f"  - {package_name} ({summary['title']})")
+
+    summary_lines.append("\nCreated Products:")
+    summary_lines.append("=" * 80)
+    for package_name, summary in sorted(package_summaries.items()):
+        for product_name in sorted(summary["products"].keys()):
+            summary_lines.append(f"  - {product_name}")
+
     summary_lines.append("\nCreated Layers:")
     summary_lines.append("=" * 80)
     for layer in sorted(all_layers):

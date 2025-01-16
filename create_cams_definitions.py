@@ -12,12 +12,14 @@ Version History:
 
 import os
 import shutil
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
-from file_utils import load_config, load_template, write_layer, generate_short_names
+from file_utils import load_config, write_layer, generate_short_names
 from summary_utils import create_summary
 from resource_utils import (
     create_package,
+    create_product,
     create_single_product,
     create_grouped_product,
     create_layer,
@@ -42,21 +44,25 @@ VAR_CONFIG_FILE = "https://git.ecmwf.int/projects/CDS/repos/cads-forms-cams/raw/
 STYLE_CONFIG_FILE = "https://raw.githubusercontent.com/CopernicusAtmosphere/air-quality-plot-settings/refs/heads/main/plot_settings.yaml"
 
 
-def process_package(package_name, package_data, templates, configs, type_="web"):
+def process_package(package_name, package_data, configs):
     """Process a single package and create all necessary products, layers, and styles."""
     print(f"\nProcessing package: {package_name}")
 
     # Initialize summary for this package
     package_summary = {"title": package_data["title"], "products": {}}
 
-    # Create package file
-    new_package = create_package(package_name, package_data, templates["package"])
+    # Create package definition file
+    new_package = create_package(package_name, package_data)
     outfile = f"{PACKAGEDIR}/{package_name}.json"
     print(f"Creating package: {outfile}")
     write_layer(outfile, new_package)
 
-    # Create package directory for products
-    package_dir = f"{PRODUCTDIR}/{package_name}_{type_}"
+    # Create subdirectory for products
+    package_dir = (
+        f"{PRODUCTDIR}/{package_name}_eea"
+        if package_data["flag"] == "eea"
+        else f"{PRODUCTDIR}/{package_name}"
+    )
     Path(package_dir).mkdir(parents=True, exist_ok=True)
 
     # Track all required layers and styles (using a dictionary to avoid duplicates)
@@ -64,46 +70,39 @@ def process_package(package_name, package_data, templates, configs, type_="web")
     required_styles = {}
 
     # Process single products
-    # for group in package_data["products"]["single"]:
-    #     for var_name in group["variables"]:
-    #         var_data = configs["var_config"]["variable"].get(var_name)
+    for var_name in package_data["products"]["single"]["variables"]:
+        new_product = create_product(
+            var_name,
+            configs["var_config"],
+            package_data["flag"],
+        )
+        outfile = f"{package_dir}/{new_product['name']}-{package_data['flag']}.json"
+        print(f"Creating product: {outfile}")
+        write_layer(outfile, new_product)
 
-    #         if var_data is None:
-    #             raise ValueError(f"No variable data found for '{var_name}' in package '{package_name}'.")
+    # Process grouped products
+    for group_name, group_data in package_data["products"]["grouped"].items():
+        new_product = create_product(
+            group_data["variables"],
+            configs["var_config"],
+            package_data["flag"],
+        )
+        outfile = f"{package_dir}/{new_product['name']}-{package_data['flag']}.json"
+        print(f"Creating product: {outfile}")
+        write_layer(outfile, new_product)
 
-    #         # Create product
-    #         new_product = create_single_product(var_name, var_data, templates["product"], configs["var_config"], type_)
-    #         outfile = f"{package_dir}/{new_product['name']}-{type_}.json"
-    #         print(f"Creating product: {outfile}")
-    #         write_layer(outfile, new_product)
-
-    #         # Track required layer and style
-    #         short_name, _ = generate_short_names(var_data["backend_api_name"])
-    #         layer_name = f"composition_europe_{short_name}_forecast_surface"
-    #         style_name = f"sh_{short_name}_{type_}_surface_concentration"
-
-    #         # Add to required_layers if not already present
-    #         if layer_name not in required_layers:
-    #             required_layers[layer_name] = var_data["backend_api_name"]
-
-    #         # Add to required_styles if not already present
-    #         if style_name not in required_styles:
-    #             required_styles[style_name] = var_data["backend_api_name"]
-
-    #         # Add to summary
-    #         package_summary['products'][new_product['name']] = {
-    #             'type': 'single',
-    #             'layers': [layer_name],
-    #             'styles': [style_name]
-    #         }
+    sys.exit()
 
     # Process grouped products
     for group_name, group_data in package_data["products"]["grouped"].items():
         # Create product
         new_product = create_grouped_product(
-            group_name, group_data, templates["product"], configs["var_config"], type_
+            group_name,
+            group_data,
+            configs["var_config"],
+            package_data["flag"],
         )
-        outfile = f"{package_dir}/{new_product['name']}-{type_}.json"
+        outfile = f"{package_dir}/{new_product['name']}-{package_data['flag']}.json"
         print(f"Creating product: {outfile}")
         write_layer(outfile, new_product)
 
@@ -112,7 +111,6 @@ def process_package(package_name, package_data, templates, configs, type_="web")
         group_styles = []
         for var_name in group_data["variables"]:
             var_data = configs["var_config"]["variable"].get(var_name)
-
             if var_data is None:
                 raise ValueError(
                     f"No variable data found for '{var_name}' in package '{package_name}'."
@@ -120,16 +118,16 @@ def process_package(package_name, package_data, templates, configs, type_="web")
 
             short_name, _ = generate_short_names(var_data["backend_api_name"])
             layer_name = f"composition_europe_{short_name}_forecast_surface"
-            style_name = f"sh_{short_name}_{type_}_surface_concentration"
+            style_name = f"sh_{short_name}_{package_data['flag']}_surface_concentration"
 
             # Add to required_layers if not already present
             if layer_name not in required_layers:
-                required_layers[layer_name] = var_data["backend_api_name"]
+                required_layers[layer_name] = var_name
                 group_layers.append(layer_name)
 
             # Add to required_styles if not already present
             if style_name not in required_styles:
-                required_styles[style_name] = var_data["backend_api_name"]
+                required_styles[style_name] = var_name
                 group_styles.append(style_name)
 
         # Add to summary
@@ -141,51 +139,19 @@ def process_package(package_name, package_data, templates, configs, type_="web")
 
     # Create required layers directly from required_layers
     print("\nCreating required layers...")
-    for layer_name, short_name in required_layers.items():
-        var_data = next(
-            (
-                v
-                for v in configs["var_config"]["variable"].values()
-                if v["backend_api_name"] == short_name
-            ),
-            None,
-        )
-
-        if var_data is None:
-            raise ValueError(
-                f"No variable data found for layer '{layer_name}' in package '{package_name}'."
-            )
-
-        new_layer = create_layer(
-            var_name, var_data, templates["layer"], configs["var_config"]
-        )
+    for layer_name, var_name in required_layers.items():
+        new_layer = create_layer(var_name, configs["var_config"])
         outfile = f"{LAYERDIR}/{layer_name}.json"
         print(f"Creating layer: {outfile}")
         write_layer(outfile, new_layer)
 
     # Create required styles directly from required_styles
     print("\nCreating required styles...")
-    for style_name, short_name in required_styles.items():
-        var_data = next(
-            (
-                v
-                for v in configs["var_config"]["variable"].values()
-                if v["backend_api_name"] == short_name
-            ),
-            None,
-        )
-
-        if var_data is None:
-            raise ValueError(
-                f"No variable data found for style '{style_name}' in package '{package_name}'."
-            )
-
+    for style_name, var_name in required_styles.items():
         new_style = create_style(
             var_name,
-            var_data["backend_api_name"],
             configs["style_config"],
-            templates["style"],
-            type_,
+            package_data["flag"],
         )
         outfile = f"{STYLEDIR}/{style_name}.json"
         print(f"Creating style: {outfile}")
@@ -208,14 +174,6 @@ def main():
         for key in ["model", "variable"]
     }
 
-    # Load templates
-    templates = {
-        "package": load_template("./etc/package_template.json"),
-        "product": load_template("./etc/product_template.json"),
-        "layer": load_template("./etc/layer_template.json"),
-        "style": load_template("./etc/style_template.json"),
-    }
-
     # Create output directories if they don't exist
     for dir_ in [LAYERDIR, STYLEDIR, PRODUCTDIR, PACKAGEDIR]:
         if Path(dir_).exists():
@@ -228,7 +186,7 @@ def main():
         # for type_ in ["web", "eea"]:
         for type_ in ["web"]:
             package_summaries[package_name] = process_package(
-                package_name, package_data, templates, configs, type_
+                package_name, package_data, configs
             )
 
     # Create summaries and visualizations
