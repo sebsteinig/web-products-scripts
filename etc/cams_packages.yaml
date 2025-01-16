@@ -16,3 +16,4 @@ packages:
         aerosol-tracers:
           title: "additional indicative tracers: aerosols"
           variables: [dust, pm10_wildfires, secondary_inorganic_aerosol, residential_elementary_carbon, total_elementary_carbon, pm10_sea_salt_dry, pm2.5_total_organic_matter, pm2.5_ammonium, pm2.5_nitrate, pm2.5_sulphate]
+
