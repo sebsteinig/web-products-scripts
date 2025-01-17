@@ -10,7 +10,13 @@ Version History:
 """
 
 import copy
-from file_utils import generate_short_names, load_template
+from file_utils import (
+    generate_short_names,
+    generate_long_name,
+    generate_layer_name,
+    load_template,
+    write_layer,
+)
 
 # Load templates used in this module
 _PACKAGE_TEMPLATE = load_template("./etc/package_template.json")
@@ -27,12 +33,87 @@ def create_package(package_name, package_data):
     new_package.update(
         {
             "name": package_name,
-            "title": package_data["title"],
+            "title": package_data["base_title"],
             "description": package_data["description"],
         }
     )
 
     return new_package
+
+
+def create_click_features(var_list, var_config, suffix):
+    if len(var_list) == 1:
+        # For single variable products
+        var_name = var_list[0]
+        var_data = var_config["variable"].get(var_name)
+        if var_data is None:
+            raise ValueError(f"No variable metadata found for '{var_name}'.")
+
+        long_name = generate_long_name(var_name)
+
+        return {
+            "feature": "cams_plumes",
+            "options": [
+                {
+                    "product": f"plume_cams_eu_{var_name}{suffix.replace('-', '_')}",
+                    "title": f"Ground-level {long_name} concentrations",
+                }
+            ],
+            "tooltip": f"Click on the map to see the graph of forecasted ground-level {long_name} concentrations for that location",
+        }
+    else:
+        # For grouped products with multiple variables
+        options = []
+        for var_name in var_list:
+            var_data = var_config["variable"].get(var_name)
+            if var_data is None:
+                raise ValueError(f"No variable metadata found for '{var_name}'.")
+
+            short_name, _ = generate_short_names(var_data["backend_api_name"])
+            long_name = generate_long_name(var_name)
+
+            layer_name = generate_layer_name(
+                "composition_europe", short_name, "forecast", "surface", suffix
+            )
+
+            options.append(
+                {
+                    "key": "layer_name",
+                    "product": f"plume_cams_eu_{var_name}{suffix}",
+                    "title": f"Ground-level {long_name} concentrations",
+                    "value": layer_name,
+                }
+            )
+
+        return {
+            "feature": "cams_plumes",
+            "options": options,
+            "tooltip": "Click to generate a plume plot",
+        }
+
+
+def create_layer_name_variable(var_list, var_config, suffix):
+    labels = []
+    values = []
+
+    for var_name in var_list:
+        label = var_name.replace("_", " ").title()
+        labels.append(label)
+
+        var_data = var_config["variable"].get(var_name)
+        short_name, _ = generate_short_names(var_data["backend_api_name"])
+        layer_name = generate_layer_name(
+            "composition_europe", short_name, "forecast", "surface", suffix
+        )
+        values.append(layer_name)
+
+    return {
+        "name": "layer_name",
+        "title": "Parameter",
+        "type": "choice",
+        "labels": labels,
+        "values": values,
+    }
 
 
 def create_models_variable(var_config):
@@ -63,218 +144,142 @@ def create_models_variable(var_config):
     }
 
 
-def create_product(input_vars, var_config, type_="web"):
-    """Create a new product definition for a single parameter."""
-    # Handle both single variable and list of variables
-    vars = [input_vars] if isinstance(input_vars, str) else input_vars
+def create_height_variable(levels):
+    """Create height level variable configuration for a product."""
+    if levels == "surface" or levels == ["surface"]:
+        return None
 
-    for var_name in vars:
-        print(var_name)
-        var_data = var_config["variable"].get(var_name)
-        if var_data is None:
-            raise ValueError(f"No variable metadata found for '{var_name}'.")
+    if isinstance(levels, str):
+        levels = [levels]
 
-        short_name, _ = generate_short_names(var_data["backend_api_name"])
-        long_name = (
-            f"PM{var_name.split('_')[-1][:-2]}"
-            if var_name.startswith("particulate")
-            else var_name.replace("_", " ")
+    # Create mapping for labels
+    label_mapping = {
+        "surface": "Surface",
+        "100m": "100 m",
+        "1000m": "1000 m",
+        "3000m": "3000 m",
+        "5000m": "5000 m",
+    }
+
+    # Create mapping for values
+    value_mapping = {
+        "surface": "key_0",
+        "100m": "key_100",
+        "1000m": "key_1000",
+        "3000m": "key_3000",
+        "5000m": "key_5000",
+    }
+
+    return {
+        "name": "level",
+        "title": "Height level",
+        "type": "choice",
+        "labels": [label_mapping[level] for level in levels],
+        "values": [value_mapping[level] for level in levels],
+    }
+
+
+def create_product(
+    input_vars, var_config, package_dir, package_data, type, group_name=""
+):
+    """Create a new product definition file."""
+
+    # check the type of product we are creating
+    suffix = "-eea" if package_data["flag"] == "eea" else ""
+
+    if isinstance(input_vars, str):
+        # single product
+        var_list = [input_vars]
+        product_type = "single"
+        product_name = f"{package_data['base_name']}-{input_vars}-{type}{suffix}"
+        product_title = f"{package_data['base_title']} {generate_long_name(input_vars)} {type.replace('-', ' ')}"
+    elif isinstance(input_vars, list) and len(input_vars) > 1:
+        # grouped product
+        var_list = input_vars
+        product_type = "grouped"
+        product_name = f"{package_data['base_name']}-{type}-{group_name}{suffix}"
+        product_title = f"{package_data['base_title']} {type.replace('-', ' ')} of {package_data['title']}"
+    else:
+        raise ValueError("Invalid input variable formatfor product creation.")
+
+    new_product = copy.deepcopy(_PRODUCT_TEMPLATE)
+
+    # update global metadata first
+    new_product.update(
+        {
+            "name": product_name,
+            "title": product_title,
+            "package": f"{package_data['package_name']}",
+            "description": f"{package_data['description']}",
+        }
+    )
+
+    # add click_features for plume plots
+    new_product["click_features"] = create_click_features(var_list, var_config, suffix)
+
+    if product_type == "grouped":
+        new_product["variables"].append(
+            create_layer_name_variable(var_list, var_config, suffix)
         )
 
-    # Process first variable to get names
-    var_data = var_config["variable"].get(var_names[0])
-    if var_data is None:
-        raise ValueError(f"No variable metadata found for '{var_names[0]}'.")
+    if package_data["flag"] == "web":
+        # add model selection variable
+        new_product["variables"].append(create_models_variable(var_config))
+        # add height selection variable
+        new_product["variables"].append(create_height_variable(package_data["levels"]))
 
-    short_name, _ = generate_short_names(var_data["backend_api_name"])
-    long_name = (
-        f"PM{var_names[0].split('_')[-1][:-2]}"
-        if var_names[0].startswith("particulate")
-        else var_names[0].replace("_", " ")
-    )
+    # # add metadata for each variable
+    # for var_name in var_list:
+    #     print(var_name)
+    #     var_data = var_config["variable"].get(var_name)
+    #     if var_data is None:
+    #         raise ValueError(f"No variable metadata found for '{var_name}'.")
 
-    # Validate remaining variables if any
-    for var_name in var_names[1:]:
-        if var_config["variable"].get(var_name) is None:
-            raise ValueError(f"No variable metadata found for '{var_name}'.")
+    #     short_name, _ = generate_short_names(var_data["backend_api_name"])
+    #     long_name = (
+    #         f"PM{var_name.split('_')[-1][:-2]}"
+    #         if var_name.startswith("particulate")
+    #         else var_name.replace("_", " ")
+    #     )
 
-    new_product = copy.deepcopy(_PRODUCT_TEMPLATE)
-    layer_name = f"composition_europe_{short_name}_forecast_surface"
+    # layer_name = f"composition_europe_{short_name}_forecast_surface"
 
-    # Set layers
-    new_product["layers"] = [
-        {
-            "class": "data",
-            "layer_type": "eccharts",
-            "name": layer_name,
-            "style": f"sh_{short_name}_{type_}_surface_concentration",
-        },
-        {
-            "class": "data",
-            "layer_type": "eccharts",
-            "name": "foreground",
-            "style": "medium_res_foreground",
-        },
-        {"class": "data", "layer_type": "eccharts", "name": "grid"},
-        {
-            "class": "data",
-            "layer_type": "eccharts",
-            "name": "boundaries",
-            "style": "black_boundaries",
-        },
-    ]
+    #     new_product["layers"] = [
+    #         {
+    #             "class": "data",
+    #             "layer_type": "eccharts",
+    #             "name": layer_name,
+    #             "style": f"sh_{short_name}_{type_}_surface_concentration",
+    #         },
+    #         {
+    #             "class": "data",
+    #             "layer_type": "eccharts",
+    #             "name": "foreground",
+    #             "style": "medium_res_foreground",
+    #         },
+    #         {"class": "data", "layer_type": "eccharts", "name": "grid"},
+    #         {
+    #             "class": "data",
+    #             "layer_type": "eccharts",
+    #             "name": "boundaries",
+    #             "style": "black_boundaries",
+    #         },
+    #     ]
 
-    # Update product metadata
-    new_product.update(
-        {
-            "name": f"europe-{var_name}-forecast",
-            "title": f"European air quality {long_name} forecast",
-            "package": "cams_air_quality",
-            "description": f"CAMS European {long_name} forecast",
-            "click_features": {
-                "options": [
-                    {
-                        "product": f"plume_cams_eu_{var_name}",
-                        "title": f"Ground-level {long_name} concentrations",
-                    }
-                ],
-                "products": [f"plume_cams_eu_{var_name}"],
-            },
-        }
-    )
+    #     "click_features": {
+    #     "options": [
+    #         {
+    #             "product": f"plume_cams_eu_{var_name}",
+    #             "title": f"Ground-level {long_name} concentrations",
+    #         }
+    #     ],
+    #     "products": [f"plume_cams_eu_{var_name}"],
+    # },
 
-    # Add models variable
-    new_product["variables"].append(create_models_variable(var_config))
-
-    return new_product
-
-
-def create_single_product(var_name, var_config, type_="web"):
-    """Create a new product definition for a single parameter."""
-    var_data = var_config["variable"].get(var_name)
-    if var_data is None:
-        raise ValueError(f"No variable metadata found for '{var_name}'.")
-
-    short_name, short_name_with_spaces = generate_short_names(
-        var_data["backend_api_name"]
-    )
-    long_name = (
-        f"PM{var_name.split('_')[-1][:-2]}"
-        if var_name.startswith("particulate")
-        else var_name.replace("_", " ")
-    )
-
-    new_product = copy.deepcopy(_PRODUCT_TEMPLATE)
-    layer_name = f"composition_europe_{short_name}_forecast_surface"
-
-    # Set layers
-    new_product["layers"] = [
-        {
-            "class": "data",
-            "layer_type": "eccharts",
-            "name": layer_name,
-            "style": f"sh_{short_name}_{type_}_surface_concentration",
-        },
-        {
-            "class": "data",
-            "layer_type": "eccharts",
-            "name": "foreground",
-            "style": "medium_res_foreground",
-        },
-        {"class": "data", "layer_type": "eccharts", "name": "grid"},
-        {
-            "class": "data",
-            "layer_type": "eccharts",
-            "name": "boundaries",
-            "style": "black_boundaries",
-        },
-    ]
-
-    # Update product metadata
-    new_product.update(
-        {
-            "name": f"europe-{var_name}-forecast",
-            "title": f"European air quality {long_name} forecast",
-            "package": "cams_air_quality",
-            "description": f"CAMS European {long_name} forecast",
-            "click_features": {
-                "options": [
-                    {
-                        "product": f"plume_cams_eu_{var_name}",
-                        "title": f"Ground-level {long_name} concentrations",
-                    }
-                ],
-                "products": [f"plume_cams_eu_{var_name}"],
-            },
-        }
-    )
-
-    # Add models variable
-    new_product["variables"].append(create_models_variable(var_config))
-
-    return new_product
-
-
-def create_grouped_product(group_name, group_data, var_config, type_="web"):
-    """Create a new product definition for a group of parameters."""
-    new_product = copy.deepcopy(_PRODUCT_TEMPLATE)
-
-    # Get first variable to use as reference for layer name and style
-    first_var = group_data["variables"][0]
-    var_data = var_config["variable"].get(first_var)
-    if var_data is None:
-        raise ValueError(f"No variable metadata found for '{first_var}'.")
-
-    short_name, _ = generate_short_names(var_data["backend_api_name"])
-    layer_name = f"composition_europe_{short_name}_forecast_surface"
-
-    # Set layers
-    new_product["layers"] = [
-        {
-            "class": "data",
-            "layer_type": "eccharts",
-            "name": layer_name,
-            "style": f"sh_{short_name}_{type_}_surface_concentration",
-        },
-        {
-            "class": "data",
-            "layer_type": "eccharts",
-            "name": "foreground",
-            "style": "medium_res_foreground",
-        },
-        {"class": "data", "layer_type": "eccharts", "name": "grid"},
-        {
-            "class": "data",
-            "layer_type": "eccharts",
-            "name": "boundaries",
-            "style": "black_boundaries",
-        },
-    ]
-
-    # Update product metadata
-    new_product.update(
-        {
-            "name": f"europe-air-quality-forecast-{group_name}",
-            "title": f"European air quality {group_data['title']} forecast",
-            "package": "cams_air_quality",
-            "description": f"CAMS European {group_data['title']} forecast",
-            "click_features": {
-                "options": [
-                    {
-                        "product": f"plume_cams_eu_{first_var}",
-                        "title": f"Ground-level {group_data['title']} concentrations",
-                    }
-                ],
-                "products": [f"plume_cams_eu_{first_var}"],
-                "tooltip": f"Ground-level {group_data['title']} concentrations",
-            },
-        }
-    )
-
-    # Add models variable
-    new_product["variables"].append(create_models_variable(var_config))
-
-    return new_product
+    outfile = f"{package_dir}/{new_product['name']}.json"
+    print(f"Creating product: {outfile}")
+    write_layer(outfile, new_product)
+    # return new_product
 
 
 def create_layer(var_name, var_config):

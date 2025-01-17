@@ -64,3 +64,18 @@ def generate_short_names(backend_api_name: str) -> tuple[str, str]:
     )
     short_name_with_spaces = short_name.replace("_", " ")
     return short_name, short_name_with_spaces
+
+
+def generate_long_name(short_name: str) -> str:
+    return (
+        f"PM{short_name.split('_')[-1][:-2]}"
+        if short_name.startswith("particulate")
+        else short_name.replace("_", " ")
+    )
+
+
+def generate_layer_name(base_name, short_name, type, level, suffix):
+    if suffix == "":
+        return f"{base_name}_{short_name}_{type}_{level}"
+    else:
+        return f"{base_name}_{short_name}_{type}_{level}_{suffix}"

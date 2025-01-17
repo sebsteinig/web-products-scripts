@@ -20,8 +20,6 @@ from summary_utils import create_summary
 from resource_utils import (
     create_package,
     create_product,
-    create_single_product,
-    create_grouped_product,
     create_layer,
     create_style,
 )
@@ -49,7 +47,7 @@ def process_package(package_name, package_data, configs):
     print(f"\nProcessing package: {package_name}")
 
     # Initialize summary for this package
-    package_summary = {"title": package_data["title"], "products": {}}
+    package_summary = {"title": package_data["base_title"], "products": {}}
 
     # Create package definition file
     new_package = create_package(package_name, package_data)
@@ -58,84 +56,66 @@ def process_package(package_name, package_data, configs):
     write_layer(outfile, new_package)
 
     # Create subdirectory for products
-    package_dir = (
-        f"{PRODUCTDIR}/{package_name}_eea"
-        if package_data["flag"] == "eea"
-        else f"{PRODUCTDIR}/{package_name}"
-    )
+    package_dir = f"{PRODUCTDIR}/{package_name}"
     Path(package_dir).mkdir(parents=True, exist_ok=True)
 
     # Track all required layers and styles (using a dictionary to avoid duplicates)
     required_layers = {}
     required_styles = {}
 
-    # Process single products
-    for var_name in package_data["products"]["single"]["variables"]:
-        new_product = create_product(
-            var_name,
-            configs["var_config"],
-            package_data["flag"],
-        )
-        outfile = f"{package_dir}/{new_product['name']}-{package_data['flag']}.json"
-        print(f"Creating product: {outfile}")
-        write_layer(outfile, new_product)
+    # loop over e.g. ["forecast", "daily-aggregated-forecast"]
+    for type in package_data["types"]:
+        # Process single products
+        for var_name in package_data["products"]["single"]["variables"]:
+            create_product(
+                var_name,
+                configs["var_config"],
+                package_dir,
+                package_data["products"]["single"],
+                type,
+            )
 
-    # Process grouped products
-    for group_name, group_data in package_data["products"]["grouped"].items():
-        new_product = create_product(
-            group_data["variables"],
-            configs["var_config"],
-            package_data["flag"],
-        )
-        outfile = f"{package_dir}/{new_product['name']}-{package_data['flag']}.json"
-        print(f"Creating product: {outfile}")
-        write_layer(outfile, new_product)
+        # Process grouped products
+        for group_name, group_data in package_data["products"]["grouped"].items():
+            create_product(
+                group_data["variables"],
+                configs["var_config"],
+                package_dir,
+                group_data,
+                type,
+                group_name,
+            )
 
-    sys.exit()
+        #     # Track required layers and styles for all variables in group
+        #     group_layers = []
+        #     group_styles = []
+        #     for var_name in group_data["variables"]:
+        #         var_data = configs["var_config"]["variable"].get(var_name)
+        #         if var_data is None:
+        #             raise ValueError(
+        #                 f"No variable data found for '{var_name}' in package '{package_name}'."
+        #             )
 
-    # Process grouped products
-    for group_name, group_data in package_data["products"]["grouped"].items():
-        # Create product
-        new_product = create_grouped_product(
-            group_name,
-            group_data,
-            configs["var_config"],
-            package_data["flag"],
-        )
-        outfile = f"{package_dir}/{new_product['name']}-{package_data['flag']}.json"
-        print(f"Creating product: {outfile}")
-        write_layer(outfile, new_product)
+        #         short_name, _ = generate_short_names(var_data["backend_api_name"])
+        #         layer_name = f"composition_europe_{short_name}_forecast_surface"
+        #         style_name = f"sh_{short_name}_{package_data['flag']}_surface_concentration"
 
-        # Track required layers and styles for all variables in group
-        group_layers = []
-        group_styles = []
-        for var_name in group_data["variables"]:
-            var_data = configs["var_config"]["variable"].get(var_name)
-            if var_data is None:
-                raise ValueError(
-                    f"No variable data found for '{var_name}' in package '{package_name}'."
-                )
+        #         # Add to required_layers if not already present
+        #         if layer_name not in required_layers:
+        #             required_layers[layer_name] = var_name
+        #             group_layers.append(layer_name)
 
-            short_name, _ = generate_short_names(var_data["backend_api_name"])
-            layer_name = f"composition_europe_{short_name}_forecast_surface"
-            style_name = f"sh_{short_name}_{package_data['flag']}_surface_concentration"
+        #         # Add to required_styles if not already present
+        #         if style_name not in required_styles:
+        #             required_styles[style_name] = var_name
+        #             group_styles.append(style_name)
 
-            # Add to required_layers if not already present
-            if layer_name not in required_layers:
-                required_layers[layer_name] = var_name
-                group_layers.append(layer_name)
-
-            # Add to required_styles if not already present
-            if style_name not in required_styles:
-                required_styles[style_name] = var_name
-                group_styles.append(style_name)
-
-        # Add to summary
-        package_summary["products"][new_product["name"]] = {
-            "type": "grouped",
-            "layers": group_layers,
-            "styles": group_styles,
-        }
+        #     # Add to summary
+        #     package_summary["products"][new_product["name"]] = {
+        #         "type": "grouped",
+        #         "layers": group_layers,
+        #         "styles": group_styles,
+        #     }
 
     # Create required layers directly from required_layers
     print("\nCreating required layers...")
@@ -183,13 +163,11 @@ def main():
     # Process each package and collect summaries
     package_summaries = {}
     for package_name, package_data in configs["package_config"]["packages"].items():
-        # for type_ in ["web", "eea"]:
-        for type_ in ["web"]:
-            package_summaries[package_name] = process_package(
-                package_name, package_data, configs
-            )
+        package_summaries[package_name] = process_package(
+            package_name, package_data, configs
+        )
 
-    # Create summaries and visualizations
+    # Create summaries and tree visualization
     create_summary(package_summaries, OUTPUTDIR)
 
 
