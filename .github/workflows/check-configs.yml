@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: miha-atos
     
     steps:
     - uses: actions/checkout@v4
