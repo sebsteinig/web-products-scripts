@@ -1,0 +1,24 @@
+{
+    "access": [
+        "public"
+    ],
+    "application": "pgf",
+    "class": "data",
+    "description": "",
+    "eccharts": false,
+    "enabled": true,
+    "in_production": true,
+    "kind": "interactive",
+    "name": "",
+    "opencharts": true,
+    "order": 34,
+    "owner": "ecmwf",
+    "publisher": "mod",
+    "render": "render",
+    "tags": {
+        "Product type": "Forecast",
+        "Parameter": "Air Quality"
+    },
+    "title": "",
+    "type": "package"
+} 

@@ -1,40 +1,89 @@
 {
     "access": [
-        "public" 
-    ], 
-    "application": "pgf", 
+        "public"
+    ],
+    "application": "pgf",
     "class": "data",
-    "eccharts": false, 
-    "enabled": true, 
-    "in_production": true, 
+    "click_features": {
+        "options": [],
+        "tooltip": "Click to generate a plume plot",
+        "feature": "cams_plumes"
+    },
+    "description": "$DESCRIPTION",
+    "eccharts": false,
+    "enabled": true,
+    "export": {
+        "licence": "Copernicus",
+        "no-title": true,
+        "orientation": "landscape",
+        "template": "cams"
+    },
+    "in_production": true,
     "kind": "interactive",
+    "layers": [
+        {
+            "class": "data",
+            "layer_type": "eccharts",
+            "name": "foreground",
+            "style": "medium_res_foreground"
+        },
+        {
+            "class": "data",
+            "layer_type": "eccharts",
+            "name": "grid"
+        },
+        {
+            "class": "data",
+            "layer_type": "eccharts",
+            "name": "boundaries",
+            "style": "black_boundaries"
+        }
+    ],
+    "legend_open": true,
+    "licence": {
+        "copyright": "\u00a92023 Copernicus Atmosphere Monitoring Service",
+        "licence": "Copernicus Products Licence 1.2",
+        "terms-and-conditions": {
+            "href": "https://ads.atmosphere.copernicus.eu/api/v2/terms/static/licence-to-use-copernicus-products.pdf"
+        }
+    },
+    "name": "$NAME",
     "opencharts": true,
-    "owner": "ecmwf", 
     "order": 34,
+    "owner": "ecmwf",
+    "package": "$PACKAGE",
     "projection": "cams_aq_central_europe",
-    "publisher": "mod", 
-    "render": "render", 
+    "publisher": "mod",
+    "render": "render",
     "tags": {
-        "Product type": "Forecast",
-        "Parameter": ""
-    }, 
-    "type": "product", 
+        "Parameter": "",
+        "Product type": "Forecast"
+    },
+    "title": "$TITLE",
+    "type": "product",
     "variables": [
         {
             "labels": [
-                "Europe", "Central Europe", "North West Europe",
-                "North East Europe", "South West Europe", "South East Europe"
+                "Europe",
+                "Central Europe",
+                "North West Europe",
+                "North East Europe",
+                "South West Europe",
+                "South East Europe"
             ],
             "name": "projection",
             "title": "Area",
             "type": "choice",
             "values": [
-                "classical_europe", "cams_aq_central_europe",
-                "cams_aq_nw_europe", "cams_aq_ne_europe",
-                "cams_aq_sw_europe", "cams_aq_se_europe"
+                "opencharts_europe",
+                "cams_aq_central_europe",
+                "cams_aq_nw_europe",
+                "cams_aq_ne_europe",
+                "cams_aq_sw_europe",
+                "cams_aq_se_europe"
             ]
         }
-    ], 
+    ],
     "viewport": {
         "height": 683,
         "width": 1024

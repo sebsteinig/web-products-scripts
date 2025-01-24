@@ -1,0 +1,58 @@
+# This YAML configuration file specifies the CAMS packages to create for use at 
+# https://atmosphere.copernicus.eu/charts/. The &default_properties anchor is used 
+# to allow shared properties to be reused in its children. Individual properties 
+# can be overwritten in children by redefining them after merging the the defaults.
+
+packages:
+
+  cams_air_quality: &default_properties
+    package_name: "cams_air_quality"
+    base_name: "europe-air-quality"
+    base_title: "European air quality"
+    description: "CAMS European air quality forecasts"
+    levels: ["surface", "100m", "1000m", "3000m", "5000m"]
+    types: ["forecast", "daily-aggregated-forecast"]
+    plumes: true
+    flag: "web"
+    products:
+      single:
+        <<: *default_properties
+        variables: []
+      grouped:
+        aerosol-tracers:
+          <<: *default_properties
+          title: "additional indicative tracers: aerosols"
+          variables: ["dust", "pm10_wildfires", "secondary_inorganic_aerosol", "residential_elementary_carbon", "total_elementary_carbon", "pm10_sea_salt_dry", "pm2.5_total_organic_matter", "pm2.5_ammonium", "pm2.5_nitrate", "pm2.5_sulphate"]
+        other:
+          <<: *default_properties
+          title: "additional indicative tracers: gases"
+          variables: ["ammonia", "formaldehyde", "glyoxal", "nitrogen_monoxide", "non_methane_vocs", "peroxyacyl_nitrates"]
+        pollens:
+          <<: *default_properties
+          title: "pollens"
+          variables: ["alder_pollen", "birch_pollen", "grass_pollen", "mugwort_pollen", "olive_pollen", "ragweed_pollen"]
+        regulated:
+          <<: *default_properties
+          title: "regulated air pollutants"
+          variables: ["ozone", "nitrogen_dioxide", "particulate_matter_10um", "particulate_matter_2.5um", "carbon_monoxide", "sulphur_dioxide"]
+
+
+  cams_air_quality_eea: &eea_default_properties
+    package_name: "cams_air_quality_eea"
+    base_name: "europe-air-quality"
+    base_title: "European air quality"
+    description: "CAMS European air quality forecasts for EEA"
+    levels: ["surface"]
+    types: ["forecast"]
+    plumes: true
+    flag: "eea"
+    products:
+      single:
+        <<: *eea_default_properties
+        base_title: "European ground-level"
+        variables: ["ozone", "nitrogen_dioxide", "particulate_matter_10um", "particulate_matter_2.5um", "sulphur_dioxide"]
+      grouped:
+        pollens:
+          <<: *eea_default_properties
+          title: "pollens"
+          variables: ["alder_pollen", "birch_pollen", "grass_pollen", "mugwort_pollen", "olive_pollen", "ragweed_pollen"]
