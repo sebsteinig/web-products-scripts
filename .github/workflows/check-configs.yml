@@ -18,8 +18,8 @@
 name: Check External Config Changes
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # runs once a day at midnight UTC
+  # schedule:
+  #   - cron: '0 0 * * *'  # runs once a day at midnight UTC
   workflow_dispatch:  # allow manual triggers for testing
 
 permissions:
